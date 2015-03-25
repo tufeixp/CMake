@@ -79,9 +79,15 @@ public:
     this->GG = lg->GetGlobalGenerator();
     this->LG = this->GG->GetCurrentLocalGenerator();
     this->GG->SetCurrentLocalGenerator(lg);
+#if defined(CMAKE_BUILD_WITH_CMAKE)
+    this->GG->GetFileLockPool().PushFileScope();
+#endif
     }
   ~cmLocalGeneratorCurrent()
     {
+#if defined(CMAKE_BUILD_WITH_CMAKE)
+    this->GG->GetFileLockPool().PopFileScope();
+#endif
     this->GG->SetCurrentLocalGenerator(this->LG);
     }
 };
@@ -147,7 +153,7 @@ void cmLocalGenerator::ComputeObjectMaxPath()
         }
       else
         {
-        cmOStringStream w;
+        std::ostringstream w;
         w << "CMAKE_OBJECT_PATH_MAX is set to " << pmax
           << ", which is less than the minimum of 128.  "
           << "The value will be ignored.";
@@ -156,7 +162,7 @@ void cmLocalGenerator::ComputeObjectMaxPath()
       }
     else
       {
-      cmOStringStream w;
+      std::ostringstream w;
       w << "CMAKE_OBJECT_PATH_MAX is set to \"" << plen
         << "\", which fails to parse as a positive integer.  "
         << "The value will be ignored.";
@@ -185,7 +191,7 @@ void cmLocalGenerator::ReadInputFile()
 
   // The file is missing.  Check policy CMP0014.
   cmMakefile* mf = this->Parent->GetMakefile();
-  cmOStringStream e;
+  std::ostringstream e;
   e << "The source directory\n"
     << "  " << this->Makefile->GetStartDirectory() << "\n"
     << "does not contain a CMakeLists.txt file.";
@@ -221,19 +227,19 @@ void cmLocalGenerator::SetupPathConversions()
   std::string outdir;
   outdir =
     cmSystemTools::CollapseFullPath(this->Makefile->GetHomeDirectory());
-  cmSystemTools::SplitPath(outdir.c_str(), this->HomeDirectoryComponents);
+  cmSystemTools::SplitPath(outdir, this->HomeDirectoryComponents);
   outdir =
     cmSystemTools::CollapseFullPath(this->Makefile->GetStartDirectory());
-  cmSystemTools::SplitPath(outdir.c_str(), this->StartDirectoryComponents);
+  cmSystemTools::SplitPath(outdir, this->StartDirectoryComponents);
 
   outdir = cmSystemTools::CollapseFullPath
     (this->Makefile->GetHomeOutputDirectory());
-  cmSystemTools::SplitPath(outdir.c_str(),
+  cmSystemTools::SplitPath(outdir,
                            this->HomeOutputDirectoryComponents);
 
   outdir = cmSystemTools::CollapseFullPath
     (this->Makefile->GetStartOutputDirectory());
-  cmSystemTools::SplitPath(outdir.c_str(),
+  cmSystemTools::SplitPath(outdir,
                            this->StartOutputDirectoryComponents);
 }
 
@@ -259,6 +265,17 @@ void cmLocalGenerator::ConfigureFinalPass()
 
 void cmLocalGenerator::TraceDependencies()
 {
+  std::vector<std::string> configs;
+  this->Makefile->GetConfigurations(configs);
+  if (configs.empty())
+    {
+    configs.push_back("");
+    }
+  for(std::vector<std::string>::const_iterator ci = configs.begin();
+      ci != configs.end(); ++ci)
+    {
+    this->GlobalGenerator->CreateEvaluationSourceFiles(*ci);
+    }
   // Generate the rule files for each target.
   cmGeneratorTargetsType targets = this->Makefile->GetGeneratorTargets();
   for(cmGeneratorTargetsType::iterator t = targets.begin();
@@ -318,7 +335,7 @@ void cmLocalGenerator::GenerateTestFiles()
     {
     (*gi)->Generate(fout, config, configurationTypes);
     }
-  if ( this->Children.size())
+  if (!this->Children.empty())
     {
     size_t i;
     for(i = 0; i < this->Children.size(); ++i)
@@ -518,17 +535,12 @@ void cmLocalGenerator::GenerateInstallRules()
       "${CMAKE_INSTALL_COMPONENT}.txt\")\n"
       "else()\n"
       "  set(CMAKE_INSTALL_MANIFEST \"install_manifest.txt\")\n"
-      "endif()\n\n";
-    fout
-      << "file(WRITE \""
-      << homedir << "/${CMAKE_INSTALL_MANIFEST}\" "
-      << "\"\")" << std::endl;
-    fout
-      << "foreach(file ${CMAKE_INSTALL_MANIFEST_FILES})" << std::endl
-      << "  file(APPEND \""
-      << homedir << "/${CMAKE_INSTALL_MANIFEST}\" "
-      << "\"${file}\\n\")" << std::endl
-      << "endforeach()" << std::endl;
+      "endif()\n"
+      "\n"
+      "string(REPLACE \";\" \"\\n\" CMAKE_INSTALL_MANIFEST_CONTENT\n"
+      "       \"${CMAKE_INSTALL_MANIFEST_FILES}\")\n"
+      "file(WRITE \"" << homedir << "/${CMAKE_INSTALL_MANIFEST}\"\n"
+      "     \"${CMAKE_INSTALL_MANIFEST_CONTENT}\")\n";
     }
 }
 
@@ -613,11 +625,7 @@ void cmLocalGenerator::AddCustomCommandToCreateObject(const char* ofname,
     // Parse the string to get the custom command line.
     cmCustomCommandLine commandLine;
     std::vector<std::string> cmd = cmSystemTools::ParseArguments(i->c_str());
-    for(std::vector<std::string>::iterator a = cmd.begin();
-        a != cmd.end(); ++a)
-      {
-      commandLine.push_back(*a);
-      }
+    commandLine.insert(commandLine.end(), cmd.begin(), cmd.end());
 
     // Store this command line.
     commandLines.push_back(commandLine);
@@ -724,11 +732,7 @@ void cmLocalGenerator::AddBuildTargetRule(const std::string& llang,
     // Parse the string to get the custom command line.
     cmCustomCommandLine commandLine;
     std::vector<std::string> cmd = cmSystemTools::ParseArguments(i->c_str());
-    for(std::vector<std::string>::iterator a = cmd.begin();
-        a != cmd.end(); ++a)
-      {
-      commandLine.push_back(*a);
-      }
+    commandLine.insert(commandLine.end(), cmd.begin(), cmd.end());
 
     // Store this command line.
     commandLines.push_back(commandLine);
@@ -923,7 +927,7 @@ cmLocalGenerator::ExpandRuleVariable(std::string const& variable,
     if(variable == "TARGET_QUOTED")
       {
       std::string targetQuoted = replaceValues.Target;
-      if(targetQuoted.size() && targetQuoted[0] != '\"')
+      if(!targetQuoted.empty() && targetQuoted[0] != '\"')
         {
         targetQuoted = '\"';
         targetQuoted += replaceValues.Target;
@@ -1224,7 +1228,7 @@ void cmLocalGenerator::InsertRuleLauncher(std::string& s, cmTarget* target,
 {
   if(const char* val = this->GetRuleLauncher(target, prop))
     {
-    cmOStringStream wrapped;
+    std::ostringstream wrapped;
     wrapped << val << " " << s;
     s = wrapped.str();
     }
@@ -1243,7 +1247,7 @@ cmLocalGenerator::ConvertToOutputForExistingCommon(const std::string& remote,
      cmSystemTools::FileExists(remote.c_str()))
     {
     std::string tmp;
-    if(cmSystemTools::GetShortPath(remote.c_str(), tmp))
+    if(cmSystemTools::GetShortPath(remote, tmp))
       {
       return this->Convert(tmp, NONE, format, true);
       }
@@ -1305,7 +1309,7 @@ std::string cmLocalGenerator::GetIncludeFlags(
     }
 
   OutputFormat shellFormat = forResponseFile? RESPONSE : SHELL;
-  cmOStringStream includeFlags;
+  std::ostringstream includeFlags;
 
   std::string flagVar = "CMAKE_INCLUDE_FLAG_";
   flagVar += lang;
@@ -1367,7 +1371,7 @@ std::string cmLocalGenerator::GetIncludeFlags(
       {
       std::string frameworkDir = *i;
       frameworkDir += "/../";
-      frameworkDir = cmSystemTools::CollapseFullPath(frameworkDir.c_str());
+      frameworkDir = cmSystemTools::CollapseFullPath(frameworkDir);
       if(emitted.insert(frameworkDir).second)
         {
         if (sysFwSearchFlag && target &&
@@ -1401,12 +1405,12 @@ std::string cmLocalGenerator::GetIncludeFlags(
       }
     std::string includePath =
       this->ConvertToIncludeReference(*i, shellFormat, forceFullPaths);
-    if(quotePaths && includePath.size() && includePath[0] != '\"')
+    if(quotePaths && !includePath.empty() && includePath[0] != '\"')
       {
       includeFlags << "\"";
       }
     includeFlags << includePath;
-    if(quotePaths && includePath.size() && includePath[0] != '\"')
+    if(quotePaths && !includePath.empty() && includePath[0] != '\"')
       {
       includeFlags << "\"";
       }
@@ -1414,7 +1418,7 @@ std::string cmLocalGenerator::GetIncludeFlags(
     }
   std::string flags = includeFlags.str();
   // remove trailing separators
-  if((sep[0] != ' ') && flags.size()>0 && flags[flags.size()-1] == sep[0])
+  if((sep[0] != ' ') && !flags.empty() && flags[flags.size()-1] == sep[0])
     {
     flags[flags.size()-1] = ' ';
     }
@@ -1500,7 +1504,7 @@ void cmLocalGenerator::AddCompileOptions(
       }
     if (this->Makefile->IsLaterStandard(it->first, standard, it->second))
       {
-      cmOStringStream e;
+      std::ostringstream e;
       e << "The COMPILE_FEATURES property of target \""
         << target->GetName() << "\" was evaluated when computing the link "
         "implementation, and the \"" << it->first << "_STANDARD\" was \""
@@ -1609,10 +1613,10 @@ void cmLocalGenerator::GetIncludeDirectories(std::vector<std::string>& dirs,
       {
       // Emit this directory only if it is a subdirectory of the
       // top-level source or binary tree.
-      if(cmSystemTools::ComparePath(i->c_str(), topSourceDir) ||
-         cmSystemTools::ComparePath(i->c_str(), topBinaryDir) ||
-         cmSystemTools::IsSubDirectory(i->c_str(), topSourceDir) ||
-         cmSystemTools::IsSubDirectory(i->c_str(), topBinaryDir))
+      if(cmSystemTools::ComparePath(*i, topSourceDir) ||
+         cmSystemTools::ComparePath(*i, topBinaryDir) ||
+         cmSystemTools::IsSubDirectory(*i, topSourceDir) ||
+         cmSystemTools::IsSubDirectory(*i, topBinaryDir))
         {
         if(emitted.insert(*i).second)
           {
@@ -1859,7 +1863,7 @@ void cmLocalGenerator::OutputLinkLibraries(std::string& linkLibraries,
   OutputFormat shellFormat = (forResponseFile) ? RESPONSE :
                              ((useWatcomQuote) ? WATCOMQUOTE : SHELL);
   bool escapeAllowMakeVars = !forResponseFile;
-  cmOStringStream fout;
+  std::ostringstream fout;
   std::string config = this->Makefile->GetSafeDefinition("CMAKE_BUILD_TYPE");
   cmComputeLinkInformation* pcli = tgt.Target->GetLinkInformation(config);
   if(!pcli)
@@ -2105,11 +2109,11 @@ bool cmLocalGenerator::GetRealDependency(const std::string& inName,
         {
         tLocation = target->GetLocation(config);
         tLocation = cmSystemTools::GetFilenamePath(tLocation);
-        tLocation = cmSystemTools::CollapseFullPath(tLocation.c_str());
+        tLocation = cmSystemTools::CollapseFullPath(tLocation);
         }
       std::string depLocation = cmSystemTools::GetFilenamePath(
         std::string(inName));
-      depLocation = cmSystemTools::CollapseFullPath(depLocation.c_str());
+      depLocation = cmSystemTools::CollapseFullPath(depLocation);
       if(depLocation != tLocation)
         {
         // it is a full path to a depend that has the same name
@@ -2194,6 +2198,13 @@ AddCompilerRequirementFlag(std::string &flags, cmTarget* target,
     {
     return;
     }
+  const char* defaultStd
+      = this->Makefile->GetDefinition("CMAKE_" + lang + "_STANDARD_DEFAULT");
+  if (!defaultStd || !*defaultStd)
+    {
+    // This compiler has no notion of language standard levels.
+    return;
+    }
   std::string stdProp = lang + "_STANDARD";
   const char *standardProp = target->GetProperty(stdProp);
   if (!standardProp)
@@ -2221,7 +2232,7 @@ AddCompilerRequirementFlag(std::string &flags, cmTarget* target,
     const char *opt = target->GetMakefile()->GetDefinition(option_flag);
     if (!opt)
       {
-      cmOStringStream e;
+      std::ostringstream e;
       e << "Target \"" << target->GetName() << "\" requires the language "
            "dialect \"" << lang << standardProp << "\" "
         << (ext ? "(with compiler extensions)" : "") << ", but CMake "
@@ -2254,22 +2265,41 @@ AddCompilerRequirementFlag(std::string &flags, cmTarget* target,
 
   std::vector<std::string>::const_iterator stdIt =
                                 std::find(stds.begin(), stds.end(), standard);
-  assert(stdIt != stds.end());
-
-  const char* defaultStd
-      = this->Makefile->GetDefinition("CMAKE_" + lang + "_STANDARD_DEFAULT");
-  std::vector<std::string>::const_iterator defaultStdIt;
-  if (defaultStd)
+  if (stdIt == stds.end())
     {
-    defaultStdIt = std::find(stds.begin(), stds.end(), defaultStd);
-    assert(defaultStdIt != stds.end());
-    }
-  else
-    {
-    defaultStdIt = stds.end() - 1;
+    std::string e =
+      lang + "_STANDARD is set to invalid value '" + standard + "'";
+    this->GetGlobalGenerator()->GetCMakeInstance()
+      ->IssueMessage(cmake::FATAL_ERROR, e, target->GetBacktrace());
+    return;
     }
 
-  for ( ; stdIt <= defaultStdIt; ++stdIt)
+  std::vector<std::string>::const_iterator defaultStdIt =
+    std::find(stds.begin(), stds.end(), defaultStd);
+  if (defaultStdIt == stds.end())
+    {
+    std::string e =
+      "CMAKE_" + lang + "_STANDARD_DEFAULT is set to invalid value '" +
+      std::string(defaultStd) + "'";
+    this->Makefile->IssueMessage(cmake::INTERNAL_ERROR, e);
+    return;
+    }
+
+  // Greater or equal because the standards are stored in
+  // backward chronological order.
+  if (stdIt >= defaultStdIt)
+    {
+    std::string option_flag =
+              "CMAKE_" + lang + *stdIt
+                      + "_" + type + "_COMPILE_OPTION";
+
+    const char *opt =
+        target->GetMakefile()->GetRequiredDefinition(option_flag);
+    this->AppendFlagEscape(flags, opt);
+    return;
+    }
+
+  for ( ; stdIt < defaultStdIt; ++stdIt)
     {
     std::string option_flag =
               "CMAKE_" + lang + *stdIt
@@ -2306,7 +2336,7 @@ static void AddVisibilityCompileOption(std::string &flags, cmTarget* target,
       && strcmp(prop, "protected") != 0
       && strcmp(prop, "internal") != 0 )
     {
-    cmOStringStream e;
+    std::ostringstream e;
     e << "Target " << target->GetName() << " uses unsupported value \""
       << prop << "\" for " << flagDefine << ".";
     cmSystemTools::Error(e.str().c_str());
@@ -2421,7 +2451,7 @@ bool cmLocalGenerator::GetShouldUseOldFlags(bool shared,
         {
         case cmPolicies::WARN:
         {
-          cmOStringStream e;
+          std::ostringstream e;
           e << "Variable " << flagsVar << " has been modified. CMake "
             "will ignore the POSITION_INDEPENDENT_CODE target property for "
             "shared libraries and will use the " << flagsVar << " variable "
@@ -2501,7 +2531,7 @@ void cmLocalGenerator::AppendFlags(std::string& flags,
 {
   if(!newFlags.empty())
     {
-    if(flags.size())
+    if(!flags.empty())
       {
       flags += " ";
       }
@@ -2739,7 +2769,7 @@ std::string cmLocalGenerator::Convert(const std::string& source,
                                       result);
         break;
       case FULL:
-        result = cmSystemTools::CollapseFullPath(result.c_str());
+        result = cmSystemTools::CollapseFullPath(result);
         break;
       case NONE:
         break;
@@ -2803,7 +2833,7 @@ std::string cmLocalGenerator::Convert(RelativeRoot remote,
   if(!local.empty() && (!optional || this->UseRelativePaths))
     {
     std::vector<std::string> components;
-    cmSystemTools::SplitPath(local.c_str(), components);
+    cmSystemTools::SplitPath(local, components);
     std::string result = this->ConvertToRelativePath(components, remotePath);
     return this->ConvertToOutputFormat(result, output);
     }
@@ -2823,7 +2853,7 @@ std::string cmLocalGenerator::FindRelativePathTopSource()
     {
     std::string parentTop = parent->FindRelativePathTopSource();
     if(cmSystemTools::IsSubDirectory(
-         this->Makefile->GetStartDirectory(), parentTop.c_str()))
+         this->Makefile->GetStartDirectory(), parentTop))
       {
       return parentTop;
       }
@@ -2843,7 +2873,7 @@ std::string cmLocalGenerator::FindRelativePathTopBinary()
     {
     std::string parentTop = parent->FindRelativePathTopBinary();
     if(cmSystemTools::IsSubDirectory(
-         this->Makefile->GetStartOutputDirectory(), parentTop.c_str()))
+         this->Makefile->GetStartOutputDirectory(), parentTop))
       {
       return parentTop;
       }
@@ -2893,7 +2923,7 @@ cmLocalGenerator::ConvertToRelativePath(const std::vector<std::string>& local,
   assert(in_remote[0] != '\"');
 
   // The local path should never have a trailing slash.
-  assert(local.size() > 0 && !(local[local.size()-1] == ""));
+  assert(!local.empty() && !(local[local.size()-1] == ""));
 
   // If the path is already relative then just return the path.
   if(!cmSystemTools::FileIsFullPath(in_remote.c_str()))
@@ -2929,12 +2959,12 @@ cmLocalGenerator::ConvertToRelativePath(const std::vector<std::string>& local,
   // Identify the longest shared path component between the remote
   // path and the local path.
   std::vector<std::string> remote;
-  cmSystemTools::SplitPath(in_remote.c_str(), remote);
+  cmSystemTools::SplitPath(in_remote, remote);
   unsigned int common=0;
   while(common < remote.size() &&
         common < local.size() &&
-        cmSystemTools::ComparePath(remote[common].c_str(),
-                                   local[common].c_str()))
+        cmSystemTools::ComparePath(remote[common],
+                                   local[common]))
     {
     ++common;
     }
@@ -2955,7 +2985,7 @@ cmLocalGenerator::ConvertToRelativePath(const std::vector<std::string>& local,
   // If the entire path is in common except for a trailing slash then
   // just return a "./".
   if(common+1 == remote.size() &&
-     remote[common].size() == 0 &&
+     remote[common].empty() &&
      common == local.size())
     {
     return "./";
@@ -2985,7 +3015,7 @@ cmLocalGenerator::ConvertToRelativePath(const std::vector<std::string>& local,
   // the trailing slash in the output.
   for(unsigned int i=common; i < remote.size(); ++i)
     {
-    if(relative.size() > 0)
+    if(!relative.empty())
       {
       relative += "/";
       }
@@ -3230,7 +3260,7 @@ cmLocalGenerator
       // Warn if this is the first time the path has been seen.
       if(this->ObjectMaxPathViolations.insert(dir_max).second)
         {
-        cmOStringStream m;
+        std::ostringstream m;
         m << "The object file directory\n"
           << "  " << dir_max << "\n"
           << "has " << dir_max.size() << " characters.  "
@@ -3628,7 +3658,7 @@ bool cmLocalGenerator::CheckDefinition(std::string const& define) const
     }
   if(function_style)
     {
-    cmOStringStream e;
+    std::ostringstream e;
     e << "WARNING: Function-style preprocessor definitions may not be "
       << "passed on the compiler command line because many compilers "
       << "do not support it.\n"
@@ -3641,7 +3671,7 @@ bool cmLocalGenerator::CheckDefinition(std::string const& define) const
   // Many compilers do not support # in the value so we disable it.
   if(define.find_first_of("#") != define.npos)
     {
-    cmOStringStream e;
+    std::ostringstream e;
     e << "WARNING: Preprocessor definitions containing '#' may not be "
       << "passed on the compiler command line because many compilers "
       << "do not support it.\n"
@@ -3683,7 +3713,7 @@ void cmLocalGenerator::GenerateAppleInfoPList(cmTarget* target,
     }
   if(!cmSystemTools::FileExists(inFile.c_str(), true))
     {
-    cmOStringStream e;
+    std::ostringstream e;
     e << "Target " << target->GetName() << " Info.plist template \""
       << inFile << "\" could not be found.";
     cmSystemTools::Error(e.str().c_str());
@@ -3727,7 +3757,7 @@ void cmLocalGenerator::GenerateFrameworkInfoPList(cmTarget* target,
     }
   if(!cmSystemTools::FileExists(inFile.c_str(), true))
     {
-    cmOStringStream e;
+    std::ostringstream e;
     e << "Target " << target->GetName() << " Info.plist template \""
       << inFile << "\" could not be found.";
     cmSystemTools::Error(e.str().c_str());

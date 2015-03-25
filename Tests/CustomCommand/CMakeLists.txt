@@ -117,6 +117,7 @@ add_custom_command(
   COMMAND ${CMAKE_COMMAND} -E echo " Copying doc1pre.txt to doc2post.txt."
   COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_BINARY_DIR}/doc1pre.txt
                                    ${PROJECT_BINARY_DIR}/doc2post.txt
+  BYPRODUCTS ${PROJECT_BINARY_DIR}/doc2post.txt
   COMMENT "Running TDocument post-build commands"
   )
 
@@ -174,13 +175,6 @@ add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/not_included.h
   DEPENDS ${PROJECT_SOURCE_DIR}/foo.h.in
   COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/foo.h.in
                                    ${PROJECT_BINARY_DIR}/not_included.h
-  )
-
-# Tell the executable where to find not_included.h.
-configure_file(
-  ${PROJECT_SOURCE_DIR}/config.h.in
-  ${PROJECT_BINARY_DIR}/config.h
-  @ONLY
   )
 
 # add the executable
@@ -496,3 +490,26 @@ add_custom_command(
   COMMAND ${CMAKE_COMMAND} -E touch "${gen_file}")
 
 add_library(NormDepends "${gen_file}")
+
+# Test that USES_TERMINAL is parsed correctly.
+# It seems much more difficult to test that USES_TERMINAL actually gives
+# the subprocess console access, as test output is piped through CTest,
+# and CTest itself might not be connected to the console.
+
+set(gen_file "${gen_path}/bar2.cxx")
+
+add_custom_command(
+  OUTPUT "${gen_file}"
+  DEPENDS "${gen_path}"
+  COMMAND ${CMAKE_COMMAND} -E touch "${gen_file}"
+  VERBATIM
+  USES_TERMINAL
+)
+
+add_library(UseConsole "${gen_file}")
+
+add_custom_target(UseConsoleTarget ALL
+  COMMAND ${CMAKE_COMMAND} -E echo "Custom console target."
+  VERBATIM
+  USES_TERMINAL
+)
