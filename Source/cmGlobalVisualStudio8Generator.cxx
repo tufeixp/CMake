@@ -400,33 +400,34 @@ cmGlobalVisualStudio8Generator
 ::WriteProjectConfigurations(
   std::ostream& fout, const std::string& name, cmTarget::TargetType type,
   const std::set<std::string>& configsPartOfDefaultBuild,
-  std::string const& platformMapping)
+  const std::string& platform,
+  const std::string& platformMapping)
 {
   std::string guid = this->GetGUID(name);
   for(std::vector<std::string>::iterator i = this->Configurations.begin();
       i != this->Configurations.end(); ++i)
     {
     fout << "\t\t{" << guid << "}." << *i
-         << "|" << this->GetPlatformName() << ".ActiveCfg = " << *i << "|"
+         << "|" << platform << ".ActiveCfg = " << *i << "|"
          << (!platformMapping.empty()?
-             platformMapping : this->GetPlatformName())
+             platformMapping : platform)
          << "\n";
       std::set<std::string>::const_iterator
         ci = configsPartOfDefaultBuild.find(*i);
       if(!(ci == configsPartOfDefaultBuild.end()))
       {
       fout << "\t\t{" << guid << "}." << *i
-           << "|" << this->GetPlatformName() << ".Build.0 = " << *i << "|"
+           << "|" << platform << ".Build.0 = " << *i << "|"
            << (!platformMapping.empty()?
-               platformMapping : this->GetPlatformName())
+               platformMapping : platform)
            << "\n";
       }
     if(this->NeedsDeploy(type))
       {
       fout << "\t\t{" << guid << "}." << *i
-           << "|" << this->GetPlatformName() << ".Deploy.0 = " << *i << "|"
+           << "|" << platform << ".Deploy.0 = " << *i << "|"
            << (!platformMapping.empty()?
-               platformMapping : this->GetPlatformName())
+               platformMapping : platform)
            << "\n";
       }
     }

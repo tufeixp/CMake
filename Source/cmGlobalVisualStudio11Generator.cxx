@@ -171,6 +171,51 @@ bool cmGlobalVisualStudio11Generator::InitializeWindowsStore(cmMakefile* mf)
     mf->IssueMessage(cmake::FATAL_ERROR, e.str());
     return false;
     }
+
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool cmGlobalVisualStudio11Generator
+::InitializeWindowsPhonePlatforms(cmMakefile* mf)
+{
+  this->targetPlatforms.clear();
+  cmGeneratorExpression::Split(this->SystemPlatforms, this->targetPlatforms);
+  for(std::vector<std::string>::iterator i = this->targetPlatforms.begin();
+      i != this->targetPlatforms.end(); ++i)
+    {
+    if(*i != "Win32" && *i != "ARM")
+      {
+      cmOStringStream e;
+      e << this->GetName() << " does not support " << *i
+        << " as a platform for Windows Phone.";
+        mf->IssueMessage(cmake::FATAL_ERROR, e.str());
+        return false;
+      }
+    }
+
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool cmGlobalVisualStudio11Generator
+::InitializeWindowsStorePlatforms(cmMakefile* mf)
+{
+  this->targetPlatforms.clear();
+  cmGeneratorExpression::Split(this->SystemPlatforms, this->targetPlatforms);
+  for(std::vector<std::string>::iterator i = this->targetPlatforms.begin();
+      i != this->targetPlatforms.end(); ++i)
+    {
+    if(*i != "Win32" && *i != "x64" && *i != "ARM")
+      {
+      cmOStringStream e;
+      e << this->GetName() << " does not support " << *i
+        << " as a platform for Windows Store.";
+      mf->IssueMessage(cmake::FATAL_ERROR, e.str());
+      return false;
+      }
+    }
+
   return true;
 }
 
@@ -229,6 +274,63 @@ void cmGlobalVisualStudio11Generator::WriteSLNHeader(std::ostream& fout)
   else
     {
     fout << "# Visual Studio 2012\n";
+    }
+}
+
+//----------------------------------------------------------------------------
+void
+cmGlobalVisualStudio11Generator
+::WriteSolutionConfigurations(std::ostream& fout)
+  {
+  bool hasTargetProcessors = false;
+  fout << "\tGlobalSection(SolutionConfigurationPlatforms) = preSolution\n";
+  for(std::vector<std::string>::iterator i = this->Configurations.begin();
+    i != this->Configurations.end(); ++i)
+    {
+    if(this->GetTargetPlatforms().empty())
+      {
+      fout << "\t\t" << *i << "|" << this->GetPlatformName()
+        << " = " << *i << "|" << this->GetPlatformName() << "\n";
+      }
+    else
+      {
+      for(std::vector<std::string>::iterator j =
+            this->GetTargetPlatforms().begin();
+          j != this->GetTargetPlatforms().end(); ++j)
+        {
+        hasTargetProcessors = true;
+        fout << "\t\t" << *i << "|" << *j
+          << " = " << *i << "|" << *j << "\n";
+        }
+      }
+    }
+  fout << "\tEndGlobalSection\n";
+  }
+
+//----------------------------------------------------------------------------
+void
+cmGlobalVisualStudio11Generator::WriteProjectConfigurations(
+  std::ostream& fout, const std::string& name, cmTarget::TargetType type,
+  const std::set<std::string>& configsPartOfDefaultBuild,
+  const std::string& platform,
+  const std::string& platformMapping)
+  {
+  if(this->GetTargetPlatforms().empty())
+    {
+    cmGlobalVisualStudio10Generator::WriteProjectConfigurations(
+      fout, name, type, configsPartOfDefaultBuild,
+      this->GetPlatformName(), platformMapping);
+    }
+  else
+    {
+    // Iterate through the platforms and write each of them in turn
+    for(std::vector<std::string>::iterator j =
+        this->GetTargetPlatforms().begin();
+      j != this->GetTargetPlatforms().end(); ++j)
+      {
+      cmGlobalVisualStudio10Generator::WriteProjectConfigurations(
+        fout, name, type, configsPartOfDefaultBuild, *j, platformMapping);
+      }
     }
 }
 

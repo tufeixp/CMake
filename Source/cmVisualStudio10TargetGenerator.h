@@ -13,7 +13,6 @@
 #define cmVisualStudioTargetGenerator_h
 #include "cmStandardIncludes.h"
 
-class cmTarget;
 class cmMakefile;
 class cmGeneratorTarget;
 class cmGeneratedFileStream;
@@ -24,6 +23,7 @@ class cmLocalVisualStudio7Generator;
 class cmComputeLinkInformation;
 class cmVisualStudioGeneratorOptions;
 struct cmIDEFlagTable;
+#include "cmTarget.h"
 #include "cmSourceGroup.h"
 
 class cmVisualStudio10TargetGenerator
@@ -31,8 +31,8 @@ class cmVisualStudio10TargetGenerator
 public:
   cmVisualStudio10TargetGenerator(cmTarget* target,
                                   cmGlobalVisualStudio10Generator* gg);
-  ~cmVisualStudio10TargetGenerator();
-  void Generate();
+  virtual ~cmVisualStudio10TargetGenerator();
+  virtual void Generate();
   // used by cmVisualStudioGeneratorOptions
   void WritePlatformConfigTag(
     const char* tag,
@@ -42,6 +42,56 @@ public:
     const char* end = 0,
     std::ostream* strm = 0
     );
+
+  // needed for multi-platform projects
+  virtual void WritePlatformConfigTag(
+    const char* tag,
+    const std::string& config,
+    const std::string& platform,
+    int indentLevel,
+    const char* attribute = 0,
+    const char* end = 0,
+    std::ostream* strm = 0
+    );
+
+protected:
+  virtual void WriteSingleProjectConfiguration(
+    const std::string& configuration,
+    const std::string& platform);
+  virtual void WriteSingleProjectConfigurationValues(
+    const std::string& configuration,
+    const std::string& platform);
+  virtual void WriteSinglePathAndIncrementalLinkOptions(
+    cmTarget::TargetType ttype,
+    const std::string& configuration,
+    const std::string& platform);
+  virtual void WriteSingleItemDefinitionGroup(
+    const std::string& configuration,
+    const std::string& platform);
+  virtual void WriteSingleDeploymentConfigurationValue(
+    const std::string& configuration,
+    const std::string& platform);
+  virtual void WriteSingleExcludedConfigurationValue(
+    const std::string& configuration,
+    const std::string& platform);
+  virtual void WriteSingleEmbeddedResource(
+    const std::string& config,
+    const std::string& platform);
+  virtual void WriteSingleSourceSpecificFlag(
+    std::string const& flags,
+    const char* compileAs,
+    bool noWinRT,
+    std::string const& configDefines,
+    std::string const& lang,
+    std::string const& configuration,
+    std::string const& platform);
+
+  virtual void WriteSingleCustomBuild(
+    const std::string& configuration,
+    const std::string& platform,
+    cmSourceFile const* source,
+    cmCustomCommand const &command,
+    cmLocalVisualStudio7Generator* lg);
 
 private:
   struct ToolSource
@@ -97,8 +147,9 @@ private:
   void WriteLinkOptions(std::string const& config);
   void WriteMidlOptions(std::string const& config,
                         std::vector<std::string> const & includes);
+  void OutputLinkIncremental(std::string const& configName,
+                             std::string const& platform);
   void WriteAntBuildOptions(std::string const& config);
-  void OutputLinkIncremental(std::string const& configName);
   void WriteCustomRule(cmSourceFile const* source,
                        cmCustomCommand const & command);
   void WriteCustomCommands();
@@ -154,6 +205,7 @@ private:
 
   typedef std::map<std::string, ToolSources> ToolSourceMap;
   ToolSourceMap Tools;
+  bool outputToPlatformPath;
 };
 
 #endif

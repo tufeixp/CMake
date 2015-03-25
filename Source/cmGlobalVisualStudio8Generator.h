@@ -88,6 +88,7 @@ protected:
   virtual void WriteProjectConfigurations(
     std::ostream& fout, const std::string& name, cmTarget::TargetType type,
     const std::set<std::string>& configsPartOfDefaultBuild,
+    const std::string& platfrom,
     const std::string& platformMapping = "");
   virtual bool ComputeTargetDepends();
   virtual void WriteProjectDepends(std::ostream& fout,

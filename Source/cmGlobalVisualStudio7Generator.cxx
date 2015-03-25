@@ -423,7 +423,8 @@ void cmGlobalVisualStudio7Generator::WriteTargetConfigurations(
       if (vcprojName)
         {
         this->WriteProjectConfigurations(fout, vcprojName, target->GetType(),
-                                         configsPartOfDefaultBuild);
+                                         configsPartOfDefaultBuild,
+                                         this->GetPlatformName());
         }
       }
     }
@@ -760,10 +761,11 @@ void cmGlobalVisualStudio7Generator
 ::WriteProjectConfigurations(
   std::ostream& fout, const std::string& name, cmTarget::TargetType,
   const std::set<std::string>& configsPartOfDefaultBuild,
+  const std::string& platform,
   const std::string& platformMapping)
 {
   const std::string& platformName =
-    !platformMapping.empty() ? platformMapping : this->GetPlatformName();
+    !platformMapping.empty() ? platformMapping : platform;
   std::string guid = this->GetGUID(name);
   for(std::vector<std::string>::iterator i = this->Configurations.begin();
       i != this->Configurations.end(); ++i)

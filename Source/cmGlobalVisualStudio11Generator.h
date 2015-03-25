@@ -27,6 +27,12 @@ public:
   virtual bool MatchesGeneratorName(const std::string& name) const;
 
   virtual void WriteSLNHeader(std::ostream& fout);
+  virtual void WriteSolutionConfigurations(std::ostream& fout);
+  virtual void WriteProjectConfigurations(
+    std::ostream& fout, const std::string& name, cmTarget::TargetType type,
+    const std::set<std::string>& configsPartOfDefaultBuild,
+    const std::string& platform,
+    const std::string& platformMapping = "");
 
   ///! create the correct local generator
   virtual cmLocalGenerator *CreateLocalGenerator();
@@ -36,6 +42,8 @@ public:
 protected:
   virtual bool InitializeWindowsPhone(cmMakefile* mf);
   virtual bool InitializeWindowsStore(cmMakefile* mf);
+  virtual bool InitializeWindowsPhonePlatforms(cmMakefile* mf);
+  virtual bool InitializeWindowsStorePlatforms(cmMakefile* mf);
   virtual bool SelectWindowsPhoneToolset(std::string& toolset) const;
   virtual bool SelectWindowsStoreToolset(std::string& toolset) const;
 
@@ -51,6 +59,7 @@ protected:
 
   /** Return true if the configuration needs to be deployed */
   virtual bool NeedsDeploy(cmTarget::TargetType type) const;
+
 private:
   class Factory;
   friend class Factory;

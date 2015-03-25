@@ -1802,37 +1802,55 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
 
   get_filename_component(ntver "[HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows NT\\CurrentVersion;CurrentVersion]" NAME)
   if(WIN32 AND ntver VERSION_GREATER 6.1) # Windows >= 8.0
-    macro(add_test_VSWinStorePhone name generator systemName systemVersion)
-      add_test(NAME VSWinStorePhone.${name} COMMAND ${CMAKE_CTEST_COMMAND}
-        --build-and-test
-        "${CMake_SOURCE_DIR}/Tests/VSWinStorePhone"
-        "${CMake_BINARY_DIR}/Tests/VSWinStorePhone/${name}"
-        --build-generator "${generator}"
-        --build-project VSWinStorePhone
-        --build-config $<CONFIGURATION>
-        --build-options -DCMAKE_SYSTEM_NAME=${systemName}
-                        -DCMAKE_SYSTEM_VERSION=${systemVersion}
+    macro(add_test_VSWinStorePhone name generator systemName systemVersion platforms)
+      if(NOT "x${platforms}" STREQUAL "x")
+        add_test(NAME VSWinStorePhone.${name} COMMAND ${CMAKE_CTEST_COMMAND}
+          --build-and-test
+          "${CMake_SOURCE_DIR}/Tests/VSWinStorePhone"
+          "${CMake_BINARY_DIR}/Tests/VSWinStorePhone/${name}"
+          --build-generator "${generator}"
+          --build-project VSWinStorePhone
+          --build-config $<CONFIGURATION>
+          --build-options -DCMAKE_SYSTEM_NAME=${systemName}
+                          -DCMAKE_SYSTEM_VERSION=${systemVersion}
+                          "-DCMAKE_VS_EFFECTIVE_PLATFORMS=${platforms}"
         )
+      else()
+        add_test(NAME VSWinStorePhone.${name} COMMAND ${CMAKE_CTEST_COMMAND}
+          --build-and-test
+          "${CMake_SOURCE_DIR}/Tests/VSWinStorePhone"
+          "${CMake_BINARY_DIR}/Tests/VSWinStorePhone/${name}"
+          --build-generator "${generator}"
+          --build-project VSWinStorePhone
+          --build-config $<CONFIGURATION>
+          --build-options -DCMAKE_SYSTEM_NAME=${systemName}
+                          -DCMAKE_SYSTEM_VERSION=${systemVersion}
+        )
+      endif()
       list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/VSWinStorePhone/${name}")
     endmacro()
 
     if(vs11 AND ws80)
-      add_test_VSWinStorePhone(vs11-store80-X86 "Visual Studio 11 2012" WindowsStore 8.0)
-      add_test_VSWinStorePhone(vs11-store80-ARM "Visual Studio 11 2012 ARM" WindowsStore 8.0)
-      add_test_VSWinStorePhone(vs11-store80-X64 "Visual Studio 11 2012 Win64" WindowsStore 8.0)
+      add_test_VSWinStorePhone(vs11-store80-X86 "Visual Studio 11 2012" WindowsStore 8.0 "")
+      add_test_VSWinStorePhone(vs11-store80-ARM "Visual Studio 11 2012 ARM" WindowsStore 8.0 "")
+      add_test_VSWinStorePhone(vs11-store80-X64 "Visual Studio 11 2012 Win64" WindowsStore 8.0 "")
+      add_test_VSWinStorePhone(vs11-store80-Multi "Visual Studio 11 2012" WindowsStore 8.0 "Win32;ARM;x64")
     endif()
     if(vs12 AND ws81)
-      add_test_VSWinStorePhone(vs12-store81-X86 "Visual Studio 12 2013" WindowsStore 8.1)
-      add_test_VSWinStorePhone(vs12-store81-ARM "Visual Studio 12 2013 ARM" WindowsStore 8.1)
-      add_test_VSWinStorePhone(vs12-store81-X64 "Visual Studio 12 2013 Win64" WindowsStore 8.1)
+      add_test_VSWinStorePhone(vs12-store81-X86 "Visual Studio 12 2013" WindowsStore 8.1 "")
+      add_test_VSWinStorePhone(vs12-store81-ARM "Visual Studio 12 2013 ARM" WindowsStore 8.1 "")
+      add_test_VSWinStorePhone(vs12-sore81-X64 "Visual Studio 12 2013 Win64" WindowsStore 8.1 "")
+      add_test_VSWinStorePhone(vs12-store81-Multi "Visual Studio 12 2013" WindowsStore 8.1 "Win32;ARM;x64")
     endif()
     if(vs11 AND wp80)
-      add_test_VSWinStorePhone(vs11-phone80-X86 "Visual Studio 11 2012" WindowsPhone 8.0)
-      add_test_VSWinStorePhone(vs11-phone80-ARM "Visual Studio 11 2012 ARM" WindowsPhone 8.0)
+      add_test_VSWinStorePhone(vs11-phone80-X86 "Visual Studio 11 2012" WindowsPhone 8.0 "")
+      add_test_VSWinStorePhone(vs11-phone80-ARM "Visual Studio 11 2012 ARM" WindowsPhone 8.0 "")
+      add_test_VSWinStorePhone(vs11-phone80-Multi "Visual Studio 11 2012" WindowsPhone 8.0 "Win32;ARM")
     endif()
     if(vs12 AND wp81)
-      add_test_VSWinStorePhone(vs12-phone81-X86 "Visual Studio 12 2013" WindowsPhone 8.1)
-      add_test_VSWinStorePhone(vs12-phone81-ARM "Visual Studio 12 2013 ARM" WindowsPhone 8.1)
+      add_test_VSWinStorePhone(vs12-phone81-X86 "Visual Studio 12 2013" WindowsPhone 8.1 "")
+      add_test_VSWinStorePhone(vs12-phone81-ARM "Visual Studio 12 2013 ARM" WindowsPhone 8.1 "")
+      add_test_VSWinStorePhone(vs12-phone81-Multi "Visual Studio 12 2013" WindowsPhone 8.1 "Win32;ARM")
     endif()
   endif()
 

@@ -218,9 +218,12 @@ void cmVisualStudioGeneratorOptions::StoreUnknownFlag(const char* flag)
 }
 
 //----------------------------------------------------------------------------
-void cmVisualStudioGeneratorOptions::SetConfiguration(const char* config)
+void cmVisualStudioGeneratorOptions
+::SetConfigurationAndPlatform(const char* config,
+                              const char* platform)
 {
   this->Configuration = config;
+  this->Platform = platform;
 }
 
 //----------------------------------------------------------------------------
@@ -244,7 +247,8 @@ cmVisualStudioGeneratorOptions
       fout << prefix;
       this->TargetGenerator->WritePlatformConfigTag(
         "PreprocessorDefinitions",
-        this->Configuration.c_str(),
+        this->Configuration,
+        this->Platform,
         0,
         0, 0, &fout);
       }
@@ -315,7 +319,8 @@ cmVisualStudioGeneratorOptions
         {
         this->TargetGenerator->WritePlatformConfigTag(
           m->first.c_str(),
-          this->Configuration.c_str(),
+          this->Configuration,
+          this->Platform,
           0,
           0, 0, &fout);
         }
@@ -367,7 +372,8 @@ cmVisualStudioGeneratorOptions
         {
         this->TargetGenerator->WritePlatformConfigTag(
           "AdditionalOptions",
-          this->Configuration.c_str(),
+          this->Configuration,
+          this->Platform,
           0,
           0, 0, &fout);
         }

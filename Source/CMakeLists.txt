@@ -420,6 +420,8 @@ if (WIN32)
       cmVisualStudioGeneratorOptions.cxx
       cmVisualStudio10TargetGenerator.h
       cmVisualStudio10TargetGenerator.cxx
+      cmVisualStudio11MultiPlatformTargetGenerator.h
+      cmVisualStudio11MultiPlatformTargetGenerator.cxx
       cmLocalVisualStudio10Generator.cxx
       cmLocalVisualStudio10Generator.h
       cmGlobalVisualStudio10Generator.h

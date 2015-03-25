@@ -196,6 +196,9 @@ cmVisualStudio10TargetGenerator(cmTarget* target,
   this->DefaultArtifactDir =
     this->Makefile->GetStartOutputDirectory() + std::string("/") +
     this->LocalGenerator->GetTargetDirectory(*this->Target);
+  const char *platforms = this->Makefile->GetDefinition(
+      "CMAKE_VS_EFFECTIVE_PLATFORMS");
+  this->outputToPlatformPath = platforms != nullptr;
 }
 
 cmVisualStudio10TargetGenerator::~cmVisualStudio10TargetGenerator()
@@ -229,7 +232,24 @@ void cmVisualStudio10TargetGenerator::WritePlatformConfigTag(
   const char* attribute,
   const char* end,
   std::ostream* stream)
+{
+  WritePlatformConfigTag(tag,
+    config,
+    this->Platform.c_str(),
+    indentLevel,
+    attribute,
+    end,
+    stream);
+}
 
+void cmVisualStudio10TargetGenerator::WritePlatformConfigTag(
+  const char* tag,
+  const std::string& config,
+  const std::string& platform,
+  int indentLevel,
+  const char* attribute,
+  const char* end,
+  std::ostream* stream)
 {
   if(!stream)
     {
@@ -240,7 +260,7 @@ void cmVisualStudio10TargetGenerator::WritePlatformConfigTag(
   (*stream ) << "";
   (*stream ) << "<" << tag
              << " Condition=\"'$(Configuration)|$(Platform)'=='";
-  (*stream ) << config << "|" << this->Platform << "'\"";
+  (*stream ) << config << "|" << platform << "'\"";
   if(attribute)
     {
     (*stream ) << attribute;
@@ -530,20 +550,27 @@ void cmVisualStudio10TargetGenerator::WriteEmbeddedResourceGroup()
       for(std::vector<std::string>::const_iterator i = configs->begin();
           i != configs->end(); ++i)
         {
-        this->WritePlatformConfigTag("LogicalName", i->c_str(), 3);
-        if(this->Target->GetProperty("VS_GLOBAL_ROOTNAMESPACE"))
-          {
-          (*this->BuildFileStream ) << "$(RootNamespace).";
-          }
-        (*this->BuildFileStream ) << "%(Filename)";
-        (*this->BuildFileStream ) << ".resources";
-        (*this->BuildFileStream ) << "</LogicalName>\n";
+        WriteSingleEmbeddedResource(*i, this->Platform);
         }
 
       this->WriteString("</EmbeddedResource>\n", 2);
       }
     this->WriteString("</ItemGroup>\n", 1);
     }
+}
+
+void cmVisualStudio10TargetGenerator::WriteSingleEmbeddedResource(
+  const std::string& config,
+  const std::string& platform)
+{
+  this->WritePlatformConfigTag("LogicalName", config, platform, 3);
+  if(this->Target->GetProperty("VS_GLOBAL_ROOTNAMESPACE"))
+    {
+    (*this->BuildFileStream) << "$(RootNamespace).";
+    }
+  (*this->BuildFileStream) << "%(Filename)";
+  (*this->BuildFileStream) << ".resources";
+  (*this->BuildFileStream) << "</LogicalName>\n";
 }
 
 void cmVisualStudio10TargetGenerator::WriteTargetSpecificReferences()
@@ -603,16 +630,23 @@ void cmVisualStudio10TargetGenerator::WriteProjectConfigurations()
   for(std::vector<std::string>::iterator i = configs->begin();
       i != configs->end(); ++i)
     {
-    this->WriteString("<ProjectConfiguration Include=\"", 2);
-    (*this->BuildFileStream ) <<  *i << "|" << this->Platform << "\">\n";
-    this->WriteString("<Configuration>", 3);
-    (*this->BuildFileStream ) <<  *i << "</Configuration>\n";
-    this->WriteString("<Platform>", 3);
-    (*this->BuildFileStream) << cmVS10EscapeXML(this->Platform)
-                             << "</Platform>\n";
-    this->WriteString("</ProjectConfiguration>\n", 2);
+    WriteSingleProjectConfiguration(*i, this->Platform);
     }
   this->WriteString("</ItemGroup>\n", 1);
+}
+
+void cmVisualStudio10TargetGenerator::WriteSingleProjectConfiguration(
+  const std::string& configuration,
+  const std::string& platform)
+{
+  this->WriteString("<ProjectConfiguration Include=\"", 2);
+  (*this->BuildFileStream) << configuration << "|" << platform << "\">\n";
+  this->WriteString("<Configuration>", 3);
+  (*this->BuildFileStream) << configuration << "</Configuration>\n";
+  this->WriteString("<Platform>", 3);
+  (*this->BuildFileStream) << cmVS10EscapeXML(platform)
+    << "</Platform>\n";
+  this->WriteString("</ProjectConfiguration>\n", 2);
 }
 
 void cmVisualStudio10TargetGenerator::WriteProjectConfigurationValues()
@@ -623,63 +657,72 @@ void cmVisualStudio10TargetGenerator::WriteProjectConfigurationValues()
   for(std::vector<std::string>::iterator i = configs->begin();
       i != configs->end(); ++i)
     {
-    this->WritePlatformConfigTag("PropertyGroup",
-                                 i->c_str(),
-                                 1, " Label=\"Configuration\"", "\n");
-    std::string configType = "<ConfigurationType>";
-    switch(this->Target->GetType())
-      {
-      case cmTarget::SHARED_LIBRARY:
-      case cmTarget::MODULE_LIBRARY:
-        configType += "DynamicLibrary";
-        break;
-      case cmTarget::OBJECT_LIBRARY:
-      case cmTarget::STATIC_LIBRARY:
-        configType += "StaticLibrary";
-        break;
-      case cmTarget::EXECUTABLE:
-        if(this->NsightTegra &&
-           !this->Target->GetPropertyAsBool("ANDROID_GUI"))
-          {
-          // Android executables are .so too.
-          configType += "DynamicLibrary";
-          }
-        else
-          {
-          configType += "Application";
-          }
-        break;
-      case cmTarget::UTILITY:
-      case cmTarget::GLOBAL_TARGET:
-        if(this->NsightTegra)
-          {
-          // Tegra-Android platform does not understand "Utility".
-          configType += "StaticLibrary";
-          }
-        else
-          {
-          configType += "Utility";
-          }
-        break;
-      case cmTarget::UNKNOWN_LIBRARY:
-      case cmTarget::INTERFACE_LIBRARY:
-        break;
-      }
-    configType += "</ConfigurationType>\n";
-    this->WriteString(configType.c_str(), 2);
-
-    if(this->MSTools)
-      {
-      this->WriteMSToolConfigurationValues(*i);
-      }
-    else if(this->NsightTegra)
-      {
-      this->WriteNsightTegraConfigurationValues(*i);
-      }
-
-    this->WriteString("</PropertyGroup>\n", 1);
+    this->WriteSingleProjectConfigurationValues(*i, this->Platform);
     }
 }
+
+void cmVisualStudio10TargetGenerator::WriteSingleProjectConfigurationValues(
+  const std::string& configuration,
+  const std::string& platform)
+  {
+  this->WritePlatformConfigTag("PropertyGroup",
+                               configuration,
+                               platform,
+                               1, " Label=\"Configuration\"", "\n");
+  std::string configType = "<ConfigurationType>";
+  switch(this->Target->GetType())
+    {
+    case cmTarget::SHARED_LIBRARY:
+    case cmTarget::MODULE_LIBRARY:
+      configType += "DynamicLibrary";
+      break;
+    case cmTarget::OBJECT_LIBRARY:
+    case cmTarget::STATIC_LIBRARY:
+      configType += "StaticLibrary";
+      break;
+    case cmTarget::EXECUTABLE:
+      if(this->NsightTegra &&
+        !this->Target->GetPropertyAsBool("ANDROID_GUI"))
+        {
+        // Android executables are .so too.
+        configType += "DynamicLibrary";
+        }
+      else
+        {
+        configType += "Application";
+        }
+      break;
+    case cmTarget::UTILITY:
+    case cmTarget::GLOBAL_TARGET:
+      if(this->NsightTegra)
+        {
+        // Tegra-Android platform does not understand "Utility".
+        configType += "StaticLibrary";
+        }
+      else
+        {
+        configType += "Utility";
+        }
+      break;
+    case cmTarget::UNKNOWN_LIBRARY:
+    case cmTarget::INTERFACE_LIBRARY:
+      break;
+    }
+  configType += "</ConfigurationType>\n";
+  this->WriteString(configType.c_str(), 2);
+
+  if(this->MSTools)
+    {
+    this->WriteMSToolConfigurationValues(configuration);
+    }
+  else if(this->NsightTegra)
+    {
+    this->WriteNsightTegraConfigurationValues(configuration);
+    }
+
+  this->WriteString("</PropertyGroup>\n", 1);
+}
+
 
 //----------------------------------------------------------------------------
 void cmVisualStudio10TargetGenerator
@@ -835,52 +878,62 @@ cmVisualStudio10TargetGenerator::WriteCustomRule(cmSourceFile const* source,
   for(std::vector<std::string>::iterator i = configs->begin();
       i != configs->end(); ++i)
     {
-    cmCustomCommandGenerator ccg(command, *i, this->Makefile);
-    std::string comment = lg->ConstructComment(ccg);
-    comment = cmVS10EscapeComment(comment);
-    std::string script =
-      cmVS10EscapeXML(lg->ConstructScript(ccg));
-    this->WritePlatformConfigTag("Message",i->c_str(), 3);
-    (*this->BuildFileStream ) << cmVS10EscapeXML(comment) << "</Message>\n";
-    this->WritePlatformConfigTag("Command", i->c_str(), 3);
-    (*this->BuildFileStream ) << script << "</Command>\n";
-    this->WritePlatformConfigTag("AdditionalInputs", i->c_str(), 3);
-
-    (*this->BuildFileStream ) << cmVS10EscapeXML(source->GetFullPath());
-    for(std::vector<std::string>::const_iterator d =
-          ccg.GetDepends().begin();
-        d != ccg.GetDepends().end();
-        ++d)
-      {
-      std::string dep;
-      if(this->LocalGenerator->GetRealDependency(d->c_str(), i->c_str(), dep))
-        {
-        this->ConvertToWindowsSlash(dep);
-        (*this->BuildFileStream ) << ";" << cmVS10EscapeXML(dep);
-        }
-      }
-    (*this->BuildFileStream ) << ";%(AdditionalInputs)</AdditionalInputs>\n";
-    this->WritePlatformConfigTag("Outputs", i->c_str(), 3);
-    const char* sep = "";
-    for(std::vector<std::string>::const_iterator o =
-          ccg.GetOutputs().begin();
-        o != ccg.GetOutputs().end();
-        ++o)
-      {
-      std::string out = *o;
-      this->ConvertToWindowsSlash(out);
-      (*this->BuildFileStream ) << sep << cmVS10EscapeXML(out);
-      sep = ";";
-      }
-    (*this->BuildFileStream ) << "</Outputs>\n";
-    if(this->LocalGenerator->GetVersion() > cmLocalVisualStudioGenerator::VS10)
-      {
-      // VS >= 11 let us turn off linking of custom command outputs.
-      this->WritePlatformConfigTag("LinkObjects", i->c_str(), 3);
-      (*this->BuildFileStream ) << "false</LinkObjects>\n";
-      }
+    this->WriteSingleCustomBuild(*i, this->Platform, source, command, lg);
     }
   this->WriteString("</CustomBuild>\n", 2);
+}
+
+void cmVisualStudio10TargetGenerator::WriteSingleCustomBuild(
+  const std::string& configuration,
+  const std::string& platform,
+  cmSourceFile const* source,
+  cmCustomCommand const &command,
+  cmLocalVisualStudio7Generator* lg)
+  {
+  cmCustomCommandGenerator ccg(command, configuration, this->Makefile);
+  std::string comment = lg->ConstructComment(ccg);
+  comment = cmVS10EscapeComment(comment);
+  std::string script =
+    cmVS10EscapeXML(lg->ConstructScript(ccg));
+  this->WritePlatformConfigTag("Message",configuration, platform, 3);
+  (*this->BuildFileStream ) << cmVS10EscapeXML(comment) << "</Message>\n";
+  this->WritePlatformConfigTag("Command", configuration, platform, 3);
+  (*this->BuildFileStream ) << script << "</Command>\n";
+  this->WritePlatformConfigTag("AdditionalInputs", configuration, platform, 3);
+
+  (*this->BuildFileStream ) << cmVS10EscapeXML(source->GetFullPath());
+  for(std::vector<std::string>::const_iterator d =
+        ccg.GetDepends().begin();
+      d != ccg.GetDepends().end();
+      ++d)
+    {
+    std::string dep;
+    if(this->LocalGenerator->GetRealDependency(d->c_str(), configuration, dep))
+      {
+      this->ConvertToWindowsSlash(dep);
+      (*this->BuildFileStream ) << ";" << cmVS10EscapeXML(dep);
+      }
+    }
+  (*this->BuildFileStream ) << ";%(AdditionalInputs)</AdditionalInputs>\n";
+  this->WritePlatformConfigTag("Outputs", configuration, platform, 3);
+  const char* sep = "";
+  for(std::vector<std::string>::const_iterator o =
+        ccg.GetOutputs().begin();
+      o != ccg.GetOutputs().end();
+      ++o)
+    {
+    std::string out = *o;
+    this->ConvertToWindowsSlash(out);
+    (*this->BuildFileStream ) << sep << cmVS10EscapeXML(out);
+    sep = ";";
+    }
+  (*this->BuildFileStream ) << "</Outputs>\n";
+  if(this->LocalGenerator->GetVersion() > cmLocalVisualStudioGenerator::VS10)
+    {
+    // VS >= 11 let us turn off linking of custom command outputs.
+    this->WritePlatformConfigTag("LinkObjects", configuration, platform, 3);
+    (*this->BuildFileStream ) << "false</LinkObjects>\n";
+    }
 }
 
 std::string
@@ -1302,19 +1355,12 @@ void cmVisualStudio10TargetGenerator::WriteExtraSource(cmSourceFile const* sf)
         {
         if(0 == strcmp(cge->Evaluate(this->Makefile, (*configs)[i]), "1"))
           {
-          this->WriteString("<DeploymentContent Condition=\""
-                            "'$(Configuration)|$(Platform)'=='", 3);
-          (*this->BuildFileStream) << (*configs)[i] << "|"
-                                   << this->Platform << "'\">true";
-          this->WriteString("</DeploymentContent>\n", 0);
+          WriteSingleDeploymentConfigurationValue(
+            (*configs)[i], this->Platform);
           }
         else
           {
-          this->WriteString("<ExcludedFromBuild Condition=\""
-                            "'$(Configuration)|$(Platform)'=='", 3);
-          (*this->BuildFileStream) << (*configs)[i] << "|"
-                                   << this->Platform << "'\">true";
-          this->WriteString("</ExcludedFromBuild>\n", 0);
+          WriteSingleExcludedConfigurationValue((*configs)[i], this->Platform);
           }
         }
       }
@@ -1343,6 +1389,29 @@ void cmVisualStudio10TargetGenerator::WriteExtraSource(cmSourceFile const* sf)
     {
     this->WriteSource(tool, sf);
     }
+}
+
+
+void cmVisualStudio10TargetGenerator::WriteSingleDeploymentConfigurationValue(
+  const std::string& configuration,
+  const std::string& platform)
+{
+  this->WriteString("<DeploymentContent Condition=\""
+    "'$(Configuration)|$(Platform)'=='", 3);
+  (*this->BuildFileStream) << configuration << "|"
+    << platform << "'\">true";
+  this->WriteString("</DeploymentContent>\n", 0);
+}
+
+void cmVisualStudio10TargetGenerator::WriteSingleExcludedConfigurationValue(
+  const std::string& configuration,
+  const std::string& platform)
+{
+  this->WriteString("<ExcludedFromBuild Condition=\""
+    "'$(Configuration)|$(Platform)'=='", 3);
+  (*this->BuildFileStream) << configuration << "|"
+    << platform << "'\">true";
+  this->WriteString("</ExcludedFromBuild>\n", 0);
 }
 
 void cmVisualStudio10TargetGenerator::WriteSource(
@@ -1619,33 +1688,53 @@ bool cmVisualStudio10TargetGenerator::OutputSourceSpecificFlags(
       (*this->BuildFileStream ) << firstString;
       firstString = ""; // only do firstString once
       hasFlags = true;
-      cmVisualStudioGeneratorOptions
-        clOptions(this->LocalGenerator,
-                  cmVisualStudioGeneratorOptions::Compiler,
-                  this->GetClFlagTable(), 0, this);
-      if(compileAs)
-        {
-        clOptions.AddFlag("CompileAs", compileAs);
-        }
-      if(noWinRT)
-        {
-        clOptions.AddFlag("CompileAsWinRT", "false");
-        }
-      clOptions.Parse(flags.c_str());
-      if(clOptions.HasFlag("AdditionalIncludeDirectories"))
-        {
-        clOptions.AppendFlag("AdditionalIncludeDirectories",
-                             "%(AdditionalIncludeDirectories)");
-        }
-      clOptions.AddDefines(configDefines.c_str());
-      clOptions.SetConfiguration((*config).c_str());
-      clOptions.OutputAdditionalOptions(*this->BuildFileStream, "      ", "");
-      clOptions.OutputFlagMap(*this->BuildFileStream, "      ");
-      clOptions.OutputPreprocessorDefinitions(*this->BuildFileStream,
-                                              "      ", "\n", lang);
+
+      WriteSingleSourceSpecificFlag(flags,
+                                    compileAs,
+                                    noWinRT,
+                                    configDefines,
+                                    lang,
+                                    *config,
+                                    this->Platform);
       }
     }
   return hasFlags;
+}
+
+void cmVisualStudio10TargetGenerator::WriteSingleSourceSpecificFlag(
+  std::string const& flags,
+  const char* compileAs,
+  bool noWinRT,
+  std::string const& configDefines,
+  std::string const& lang,
+  std::string const& configuration,
+  std::string const& platform)
+{
+  cmVisualStudioGeneratorOptions
+        clOptions(this->LocalGenerator,
+                  cmVisualStudioGeneratorOptions::Compiler,
+                  this->GetClFlagTable(), 0, this);
+  if(compileAs)
+    {
+    clOptions.AddFlag("CompileAs", compileAs);
+    }
+  if(noWinRT)
+    {
+    clOptions.AddFlag("CompileAsWinRT", "false");
+    }
+  clOptions.Parse(flags.c_str());
+  if(clOptions.HasFlag("AdditionalIncludeDirectories"))
+    {
+    clOptions.AppendFlag("AdditionalIncludeDirectories",
+                          "%(AdditionalIncludeDirectories)");
+    }
+  clOptions.AddDefines(configDefines.c_str());
+  clOptions.SetConfigurationAndPlatform(
+    configuration.c_str(), platform.c_str());
+  clOptions.OutputAdditionalOptions(*this->BuildFileStream, "      ", "");
+  clOptions.OutputFlagMap(*this->BuildFileStream, "      ");
+  clOptions.OutputPreprocessorDefinitions(*this->BuildFileStream,
+                                          "      ", "\n", lang);
 }
 
 
@@ -1666,71 +1755,89 @@ void cmVisualStudio10TargetGenerator::WritePathAndIncrementalLinkOptions()
   for(std::vector<std::string>::iterator config = configs->begin();
       config != configs->end(); ++config)
     {
-    if(ttype >= cmTarget::UTILITY)
+    this->WriteSinglePathAndIncrementalLinkOptions(ttype,
+      *config,
+      this->Platform);
+    }
+  this->WriteString("</PropertyGroup>\n", 2);
+  }
+
+void cmVisualStudio10TargetGenerator::WriteSinglePathAndIncrementalLinkOptions(
+  cmTarget::TargetType ttype,
+  const std::string& configuration,
+  const std::string& platform)
+{
+
+  if(ttype >= cmTarget::UTILITY)
+    {
+    this->WritePlatformConfigTag("IntDir", configuration, platform, 3);
+    *this->BuildFileStream
+      << "$(Platform)\\$(Configuration)\\$(ProjectName)\\"
+      << "</IntDir>\n";
+    }
+  else
+    {
+    std::string intermediateDir = this->LocalGenerator->
+      GetTargetDirectory(*this->Target);
+    intermediateDir += "/";
+    intermediateDir += configuration;
+    intermediateDir += "/";
+    if(this->outputToPlatformPath)
       {
-      this->WritePlatformConfigTag("IntDir", config->c_str(), 3);
-      *this->BuildFileStream
-        << "$(Platform)\\$(Configuration)\\$(ProjectName)\\"
-        << "</IntDir>\n";
+      intermediateDir += "$(Platform)/";
+      }
+    std::string outDir;
+    std::string targetNameFull;
+    if(ttype == cmTarget::OBJECT_LIBRARY)
+      {
+      outDir = intermediateDir;
+      targetNameFull = this->Target->GetName();
+      targetNameFull += ".lib";
       }
     else
       {
-      std::string intermediateDir = this->LocalGenerator->
-        GetTargetDirectory(*this->Target);
-      intermediateDir += "/";
-      intermediateDir += *config;
-      intermediateDir += "/";
-      std::string outDir;
-      std::string targetNameFull;
-      if(ttype == cmTarget::OBJECT_LIBRARY)
+      outDir = this->Target->GetDirectory(configuration) + "/";
+      if(outputToPlatformPath)
         {
-        outDir = intermediateDir;
-        targetNameFull = this->Target->GetName();
-        targetNameFull += ".lib";
+        //outDir += "$(Platform)/";
         }
-      else
-        {
-        outDir = this->Target->GetDirectory(config->c_str()) + "/";
-        targetNameFull = this->Target->GetFullName(config->c_str());
-        }
-      this->ConvertToWindowsSlash(intermediateDir);
-      this->ConvertToWindowsSlash(outDir);
-
-      this->WritePlatformConfigTag("OutDir", config->c_str(), 3);
-      *this->BuildFileStream << cmVS10EscapeXML(outDir)
-                             << "</OutDir>\n";
-
-      this->WritePlatformConfigTag("IntDir", config->c_str(), 3);
-      *this->BuildFileStream << cmVS10EscapeXML(intermediateDir)
-                             << "</IntDir>\n";
-
-      std::string name =
-        cmSystemTools::GetFilenameWithoutLastExtension(targetNameFull);
-      this->WritePlatformConfigTag("TargetName", config->c_str(), 3);
-      *this->BuildFileStream << cmVS10EscapeXML(name) << "</TargetName>\n";
-
-      std::string ext =
-        cmSystemTools::GetFilenameLastExtension(targetNameFull);
-      if(ext.empty())
-        {
-        // An empty TargetExt causes a default extension to be used.
-        // A single "." appears to be treated as an empty extension.
-        ext = ".";
-        }
-      this->WritePlatformConfigTag("TargetExt", config->c_str(), 3);
-      *this->BuildFileStream << cmVS10EscapeXML(ext) << "</TargetExt>\n";
-
-      this->OutputLinkIncremental(*config);
+      targetNameFull = this->Target->GetFullName(configuration);
       }
+    this->ConvertToWindowsSlash(intermediateDir);
+    this->ConvertToWindowsSlash(outDir);
+
+    this->WritePlatformConfigTag("OutDir", configuration, platform, 3);
+    *this->BuildFileStream << cmVS10EscapeXML(outDir)
+                            << "</OutDir>\n";
+
+    this->WritePlatformConfigTag("IntDir", configuration, platform, 3);
+    *this->BuildFileStream << cmVS10EscapeXML(intermediateDir)
+                            << "</IntDir>\n";
+
+    std::string name =
+      cmSystemTools::GetFilenameWithoutLastExtension(targetNameFull);
+    this->WritePlatformConfigTag("TargetName", configuration, platform, 3);
+    *this->BuildFileStream << cmVS10EscapeXML(name) << "</TargetName>\n";
+
+    std::string ext =
+      cmSystemTools::GetFilenameLastExtension(targetNameFull);
+    if(ext.empty())
+      {
+      // An empty TargetExt causes a default extension to be used.
+      // A single "." appears to be treated as an empty extension.
+      ext = ".";
+      }
+    this->WritePlatformConfigTag("TargetExt", configuration, platform, 3);
+    *this->BuildFileStream << cmVS10EscapeXML(ext) << "</TargetExt>\n";
+
+    this->OutputLinkIncremental(configuration, platform);
     }
-  this->WriteString("</PropertyGroup>\n", 2);
 }
-
-
 
 void
 cmVisualStudio10TargetGenerator::
-OutputLinkIncremental(std::string const& configName)
+OutputLinkIncremental(std::string const& configName,
+                      std::string const& platform)
 {
   if(!this->MSTools)
     {
@@ -1746,13 +1853,13 @@ OutputLinkIncremental(std::string const& configName)
   Options& linkOptions = *(this->LinkOptions[configName]);
 
   const char* incremental = linkOptions.GetFlag("LinkIncremental");
-  this->WritePlatformConfigTag("LinkIncremental", configName.c_str(), 3);
+  this->WritePlatformConfigTag("LinkIncremental", configName, platform, 3);
   *this->BuildFileStream << (incremental?incremental:"true")
                          << "</LinkIncremental>\n";
   linkOptions.RemoveFlag("LinkIncremental");
 
   const char* manifest = linkOptions.GetFlag("GenerateManifest");
-  this->WritePlatformConfigTag("GenerateManifest", configName.c_str(), 3);
+  this->WritePlatformConfigTag("GenerateManifest", configName, platform, 3);
   *this->BuildFileStream << (manifest?manifest:"true")
                          << "</GenerateManifest>\n";
   linkOptions.RemoveFlag("GenerateManifest");
@@ -1768,7 +1875,7 @@ OutputLinkIncremental(std::string const& configName)
     const char* flag = *f;
     if(const char* value = linkOptions.GetFlag(flag))
       {
-      this->WritePlatformConfigTag(flag, configName.c_str(), 3);
+      this->WritePlatformConfigTag(flag, configName, platform, 3);
       *this->BuildFileStream << value << "</" << flag << ">\n";
       linkOptions.RemoveFlag(flag);
       }
@@ -2365,6 +2472,10 @@ cmVisualStudio10TargetGenerator::ComputeLinkOptions(std::string const& config)
     pdb += targetNamePDB;
     std::string imLib = this->Target->GetDirectory(config.c_str(), true);
     imLib += "/";
+    if(this->outputToPlatformPath)
+      {
+      //imLib += "$(Platform)/";
+      }
     imLib += targetNameImport;
 
     linkOptions.AddFlag("ImportLibrary", imLib.c_str());
@@ -2518,41 +2629,50 @@ void cmVisualStudio10TargetGenerator::WriteItemDefinitionGroups()
   for(std::vector<std::string>::iterator i = configs->begin();
       i != configs->end(); ++i)
     {
-    std::vector<std::string> includes;
-    this->LocalGenerator->GetIncludeDirectories(includes,
-                                                this->GeneratorTarget,
-                                                "C", i->c_str());
-    for(std::vector<std::string>::iterator ii = includes.begin();
-        ii != includes.end(); ++ii)
-      {
-      this->ConvertToWindowsSlash(*ii);
-      }
-    this->WritePlatformConfigTag("ItemDefinitionGroup", i->c_str(), 1);
-    *this->BuildFileStream << "\n";
-    //    output cl compile flags <ClCompile></ClCompile>
-    if(this->Target->GetType() <= cmTarget::OBJECT_LIBRARY)
-      {
-      this->WriteClOptions(*i, includes);
-      //    output rc compile flags <ResourceCompile></ResourceCompile>
-      this->WriteRCOptions(*i, includes);
-      this->WriteMasmOptions(*i, includes);
-      }
-    //    output midl flags       <Midl></Midl>
-    this->WriteMidlOptions(*i, includes);
-    // write events
-    this->WriteEvents(*i);
-    //    output link flags       <Link></Link>
-    this->WriteLinkOptions(*i);
-    //    output lib flags       <Lib></Lib>
-    this->WriteLibOptions(*i);
-    if(this->NsightTegra &&
-       this->Target->GetType() == cmTarget::EXECUTABLE &&
-       this->Target->GetPropertyAsBool("ANDROID_GUI"))
-      {
-      this->WriteAntBuildOptions(*i);
-      }
-    this->WriteString("</ItemDefinitionGroup>\n", 1);
+    this->WriteSingleItemDefinitionGroup(*i, this->Platform);
     }
+  }
+
+void cmVisualStudio10TargetGenerator::WriteSingleItemDefinitionGroup(
+  const std::string& configuration,
+  const std::string& platform)
+{
+  std::vector<std::string> includes;
+  this->LocalGenerator->GetIncludeDirectories(includes,
+                                              this->GeneratorTarget,
+                                              "C", configuration);
+  for(std::vector<std::string>::iterator ii = includes.begin();
+      ii != includes.end(); ++ii)
+    {
+    this->ConvertToWindowsSlash(*ii);
+    }
+  this->WritePlatformConfigTag("ItemDefinitionGroup",
+                               configuration, platform, 1);
+  *this->BuildFileStream << "\n";
+  //    output cl compile flags <ClCompile></ClCompile>
+  if(this->Target->GetType() <= cmTarget::OBJECT_LIBRARY)
+    {
+    this->WriteClOptions(configuration, includes);
+    //    output rc compile flags <ResourceCompile></ResourceCompile>
+    this->WriteRCOptions(configuration, includes);
+    this->WriteMasmOptions(configuration, includes);
+    }
+
+  //    output midl flags       <Midl></Midl>
+  this->WriteMidlOptions(configuration, includes);
+  // write events
+  this->WriteEvents(configuration);
+  //    output link flags       <Link></Link>
+  this->WriteLinkOptions(configuration);
+  //    output lib flags       <Lib></Lib>
+  this->WriteLibOptions(configuration);
+  if(this->NsightTegra &&
+      this->Target->GetType() == cmTarget::EXECUTABLE &&
+      this->Target->GetPropertyAsBool("ANDROID_GUI"))
+    {
+    this->WriteAntBuildOptions(configuration);
+    }
+  this->WriteString("</ItemDefinitionGroup>\n", 1);
 }
 
 void
@@ -2772,12 +2892,12 @@ void cmVisualStudio10TargetGenerator::WriteApplicationTypeSettings()
   if(isAppContainer)
     {
     this->WriteString("<AppContainerApplication>true"
-                      "</AppContainerApplication>", 2);
+                      "</AppContainerApplication>\n", 2);
     }
-  else if (this->Platform == "ARM")
+  else if (this->Platform == "ARM" || this->outputToPlatformPath)
     {
     this->WriteString("<WindowsSDKDesktopARMSupport>true"
-                      "</WindowsSDKDesktopARMSupport>", 2);
+                      "</WindowsSDKDesktopARMSupport>\n", 2);
     }
 }
 

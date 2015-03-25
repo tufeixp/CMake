@@ -133,6 +133,7 @@ protected:
   virtual void WriteProjectConfigurations(
     std::ostream& fout, const std::string& name, cmTarget::TargetType type,
     const std::set<std::string>& configsPartOfDefaultBuild,
+    const std::string& platform,
     const std::string& platformMapping = "");
   virtual void WriteSLNGlobalSections(std::ostream& fout,
                                       cmLocalGenerator* root);

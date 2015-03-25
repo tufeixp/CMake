@@ -69,6 +69,14 @@ public:
   /** Return the CMAKE_SYSTEM_NAME.  */
   std::string const& GetSystemName() const { return this->SystemName; }
 
+  /** Return the CMAKE_SYSTEM_PROCESSORS.  */
+  std::string const& GetSystemPlatforms() const
+    { return this->SystemPlatforms; }
+
+  /** Return the CMAKE_VS_EFFECTIVE_PLATFORMS.  */
+  std::vector<std::string>& GetTargetPlatforms()
+    { return this->targetPlatforms; }
+
   /** Return the CMAKE_SYSTEM_VERSION.  */
   std::string const& GetSystemVersion() const { return this->SystemVersion; }
 
@@ -118,6 +126,9 @@ protected:
   virtual bool InitializeWindowsCE(cmMakefile* mf);
   virtual bool InitializeWindowsPhone(cmMakefile* mf);
   virtual bool InitializeWindowsStore(cmMakefile* mf);
+  virtual bool InitializeWindowsPlatforms(cmMakefile* mf);
+  virtual bool InitializeWindowsPhonePlatforms(cmMakefile* mf);
+  virtual bool InitializeWindowsStorePlatforms(cmMakefile* mf);
 
   virtual std::string SelectWindowsCEToolset() const;
   virtual bool SelectWindowsPhoneToolset(std::string& toolset) const;
@@ -130,6 +141,7 @@ protected:
   std::string GeneratorToolset;
   std::string DefaultPlatformToolset;
   std::string SystemName;
+  std::string SystemPlatforms;
   std::string SystemVersion;
   std::string NsightTegraVersion;
   bool SystemIsWindowsCE;
@@ -156,5 +168,8 @@ private:
   virtual std::string FindMSBuildCommand();
   virtual std::string FindDevEnvCommand();
   virtual std::string GetVSMakeProgram() { return this->GetMSBuildCommand(); }
+
+protected:
+  std::vector<std::string> targetPlatforms;
 };
 #endif

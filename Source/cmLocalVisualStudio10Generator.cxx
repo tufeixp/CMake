@@ -13,9 +13,12 @@
 #include "cmTarget.h"
 #include "cmMakefile.h"
 #include "cmVisualStudio10TargetGenerator.h"
+#include "cmVisualStudio11MultiPlatformTargetGenerator.h"
 #include "cmGlobalVisualStudio10Generator.h"
+#include "cmGlobalVisualStudio11Generator.h"
 #include <cm_expat.h>
 #include "cmXMLParser.h"
+#include <cmsys/auto_ptr.hxx>
 class cmVS10XMLParser : public cmXMLParser
 {
   public:
@@ -87,10 +90,26 @@ void cmLocalVisualStudio10Generator::Generate()
       }
     else
       {
-      cmVisualStudio10TargetGenerator tg(
-        &l->second, static_cast<cmGlobalVisualStudio10Generator*>(
-          this->GetGlobalGenerator()));
-      tg.Generate();
+      cmsys::auto_ptr<cmVisualStudio10TargetGenerator> tg;
+      cmGlobalVisualStudio11Generator* vs11Gen =
+        dynamic_cast<cmGlobalVisualStudio11Generator*> (this->GlobalGenerator);
+      if (vs11Gen != NULL)
+        {
+        cmsys::auto_ptr<cmVisualStudio11MultiPlatformTargetGenerator>
+          tg11 (new cmVisualStudio11MultiPlatformTargetGenerator(
+            &l->second, vs11Gen));
+        tg = tg11;
+        }
+      else
+        {
+        cmGlobalVisualStudio10Generator* vs10Gen =
+          static_cast<cmGlobalVisualStudio10Generator*>
+          (this->GetGlobalGenerator());
+        cmsys::auto_ptr<cmVisualStudio10TargetGenerator>
+          tg10 (new cmVisualStudio10TargetGenerator(&l->second, vs10Gen));
+        tg = tg10;
+        }
+      tg->Generate();
       }
     }
   this->WriteStampFiles();

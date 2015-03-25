@@ -357,6 +357,7 @@ void cmTarget::SetMakefile(cmMakefile* mf)
     this->SetPropertyDefault("CXX_STANDARD", 0);
     this->SetPropertyDefault("CXX_STANDARD_REQUIRED", 0);
     this->SetPropertyDefault("CXX_EXTENSIONS", 0);
+    this->SetPropertyDefault("OUTPUT_TO_PLATFORM", 0);
     }
 
   // Collect the set of configuration types.
@@ -4583,8 +4584,21 @@ bool cmTarget::ComputeOutputDir(const std::string& config,
     {
     const char *platforms = this->Makefile->GetDefinition(
       "CMAKE_XCODE_EFFECTIVE_PLATFORMS");
-    std::string suffix =
-      usesDefaultOutputDir && platforms ? "$(EFFECTIVE_PLATFORM_NAME)" : "";
+    std::string suffix = "";
+    if(platforms)
+    {
+      suffix = usesDefaultOutputDir ? "$(EFFECTIVE_PLATFORM_NAME)" : "";
+    }
+    else
+    {
+      platforms = this->Makefile->GetDefinition(
+        "CMAKE_VS_EFFECTIVE_PLATFORMS");
+      if(platforms)
+      {
+      suffix = usesDefaultOutputDir ? "/$(Platform)" : "";
+      }
+    }
+
     this->Makefile->GetLocalGenerator()->GetGlobalGenerator()->
       AppendDirectoryForConfig("/", conf, suffix, out);
     }
@@ -4647,8 +4661,16 @@ bool cmTarget::ComputePDBOutputDir(const std::string& kind,
   // The generator may add the configuration's subdirectory.
   if(!conf.empty())
     {
+    const char *platforms = this->Makefile->GetDefinition(
+        "CMAKE_VS_EFFECTIVE_PLATFORMS");
+    std::string suffix = "";
+    if(platforms)
+      {
+      suffix = "/$(Platform)";
+      }
+
     this->Makefile->GetLocalGenerator()->GetGlobalGenerator()->
-      AppendDirectoryForConfig("/", conf, "", out);
+      AppendDirectoryForConfig("/", conf, suffix, out);
     }
   return true;
 }

@@ -63,12 +63,13 @@ public:
   void OutputAdditionalOptions(std::ostream& fout,
                                const char* prefix,
                                const char* suffix);
-  void SetConfiguration(const char* config);
+  void SetConfigurationAndPlatform(const char* config, const char* platform);
 private:
   cmLocalVisualStudioGenerator* LocalGenerator;
   cmLocalVisualStudioGenerator::VSVersion Version;
 
   std::string Configuration;
+  std::string Platform;
   Tool CurrentTool;
   cmVisualStudio10TargetGenerator* TargetGenerator;
 

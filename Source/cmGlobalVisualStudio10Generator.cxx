@@ -122,6 +122,8 @@ bool cmGlobalVisualStudio10Generator::SetSystemName(std::string const& s,
 {
   this->SystemName = s;
   this->SystemVersion = mf->GetSafeDefinition("CMAKE_SYSTEM_VERSION");
+  this->SystemPlatforms =
+    mf->GetSafeDefinition("CMAKE_VS_EFFECTIVE_PLATFORMS");
   if(!this->InitializeSystem(mf))
     {
     return false;
@@ -185,7 +187,8 @@ bool cmGlobalVisualStudio10Generator::InitializeSystem(cmMakefile* mf)
   else if(this->SystemName == "WindowsPhone")
     {
     this->SystemIsWindowsPhone = true;
-    if(!this->InitializeWindowsPhone(mf))
+    if(!this->InitializeWindowsPhone(mf) ||
+       !this->InitializeWindowsPhonePlatforms(mf))
       {
       return false;
       }
@@ -193,7 +196,8 @@ bool cmGlobalVisualStudio10Generator::InitializeSystem(cmMakefile* mf)
   else if(this->SystemName == "WindowsStore")
     {
     this->SystemIsWindowsStore = true;
-    if(!this->InitializeWindowsStore(mf))
+    if(!this->InitializeWindowsStore(mf) ||
+       !this->InitializeWindowsStorePlatforms(mf))
       {
       return false;
       }
@@ -221,6 +225,11 @@ bool cmGlobalVisualStudio10Generator::InitializeSystem(cmMakefile* mf)
     this->DefaultPlatformToolset = "Default";
     this->NsightTegraVersion = v;
     mf->AddDefinition("CMAKE_VS_NsightTegra_VERSION", v.c_str());
+    }
+  else if(this->SystemName == "Windows")
+    {
+    if(!this->InitializeWindowsPlatforms(mf))
+      return false;
     }
 
   return true;
@@ -254,6 +263,49 @@ bool cmGlobalVisualStudio10Generator::InitializeWindowsPhone(cmMakefile* mf)
 
 //----------------------------------------------------------------------------
 bool cmGlobalVisualStudio10Generator::InitializeWindowsStore(cmMakefile* mf)
+{
+  cmOStringStream e;
+  e << this->GetName() << " does not support Windows Store.";
+  mf->IssueMessage(cmake::FATAL_ERROR, e.str());
+  return false;
+}
+
+//----------------------------------------------------------------------------
+bool cmGlobalVisualStudio10Generator
+::InitializeWindowsPlatforms(cmMakefile* mf)
+  {
+  this->targetPlatforms.clear();
+  cmGeneratorExpression::Split(this->SystemPlatforms, this->targetPlatforms);
+  /*
+  for(std::vector<std::string>::iterator i = this->targetPlatforms.begin();
+    i != this->targetPlatforms.end(); ++i)
+    {
+    if(*i != "Win32" && *i != "x64")
+      {
+      cmOStringStream e;
+      e << this->GetName() << " does not support " << *i
+        << " as a platform for Windows.";
+      mf->IssueMessage(cmake::FATAL_ERROR, e.str());
+      return false;
+      }
+    }
+    */
+  return true;
+  }
+
+//----------------------------------------------------------------------------
+bool cmGlobalVisualStudio10Generator
+::InitializeWindowsPhonePlatforms(cmMakefile* mf)
+{
+  cmOStringStream e;
+  e << this->GetName() << " does not support Windows Phone.";
+  mf->IssueMessage(cmake::FATAL_ERROR, e.str());
+  return false;
+}
+
+//----------------------------------------------------------------------------
+bool cmGlobalVisualStudio10Generator
+::InitializeWindowsStorePlatforms(cmMakefile* mf)
 {
   cmOStringStream e;
   e << this->GetName() << " does not support Windows Store.";
