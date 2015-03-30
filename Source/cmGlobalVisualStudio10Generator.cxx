@@ -282,7 +282,7 @@ bool cmGlobalVisualStudio10Generator
     {
     if(*i != "Win32" && *i != "x64")
       {
-      cmOStringStream e;
+      std::ostringstream e;
       e << this->GetName() << " does not support " << *i
         << " as a platform for Windows.";
       mf->IssueMessage(cmake::FATAL_ERROR, e.str());
@@ -297,7 +297,7 @@ bool cmGlobalVisualStudio10Generator
 bool cmGlobalVisualStudio10Generator
 ::InitializeWindowsPhonePlatforms(cmMakefile* mf)
 {
-  cmOStringStream e;
+  std::ostringstream e;
   e << this->GetName() << " does not support Windows Phone.";
   mf->IssueMessage(cmake::FATAL_ERROR, e.str());
   return false;
@@ -307,7 +307,7 @@ bool cmGlobalVisualStudio10Generator
 bool cmGlobalVisualStudio10Generator
 ::InitializeWindowsStorePlatforms(cmMakefile* mf)
 {
-  cmOStringStream e;
+  std::ostringstream e;
   e << this->GetName() << " does not support Windows Store.";
   mf->IssueMessage(cmake::FATAL_ERROR, e.str());
   return false;

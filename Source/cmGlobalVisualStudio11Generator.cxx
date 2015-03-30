@@ -186,7 +186,7 @@ bool cmGlobalVisualStudio11Generator
     {
     if(*i != "Win32" && *i != "ARM")
       {
-      cmOStringStream e;
+      std::ostringstream e;
       e << this->GetName() << " does not support " << *i
         << " as a platform for Windows Phone.";
         mf->IssueMessage(cmake::FATAL_ERROR, e.str());
@@ -208,7 +208,7 @@ bool cmGlobalVisualStudio11Generator
     {
     if(*i != "Win32" && *i != "x64" && *i != "ARM")
       {
-      cmOStringStream e;
+      std::ostringstream e;
       e << this->GetName() << " does not support " << *i
         << " as a platform for Windows Store.";
       mf->IssueMessage(cmake::FATAL_ERROR, e.str());
