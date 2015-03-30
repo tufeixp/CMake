@@ -77,6 +77,7 @@ private:
   void WriteMissingFilesWP81();
   void WriteMissingFilesWS80();
   void WriteMissingFilesWS81();
+  void WriteMissingFilesWS10_0();
   void WriteCommonMissingFiles(const std::string& manifestFile);
   void WriteTargetSpecificReferences();
 
