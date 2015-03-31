@@ -481,6 +481,7 @@ void cmVisualStudio10TargetGenerator::Generate()
   this->WriteAllSources();
   this->WriteDotNetReferences();
   this->WriteEmbeddedResourceGroup();
+  this->WriteXamlFilesGroup();
   this->WriteWinRTReferences();
   this->WriteProjectReferences();
   this->WriteString(
@@ -542,8 +543,7 @@ void cmVisualStudio10TargetGenerator::WriteEmbeddedResourceGroup()
 
       this->WriteString("<DependentUpon>", 3);
       std::string hFileName = obj.substr(0, obj.find_last_of(".")) + ".h";
-      (*this->BuildFileStream ) << hFileName;
-      this->WriteString("</DependentUpon>\n", 3);
+      (*this->BuildFileStream) << hFileName << "</DependentUpon>\n";
 
       std::vector<std::string> const * configs =
         this->GlobalGenerator->GetConfigurations();
@@ -571,6 +571,38 @@ void cmVisualStudio10TargetGenerator::WriteSingleEmbeddedResource(
   (*this->BuildFileStream) << "%(Filename)";
   (*this->BuildFileStream) << ".resources";
   (*this->BuildFileStream) << "</LogicalName>\n";
+}
+
+void cmVisualStudio10TargetGenerator::WriteXamlFilesGroup()
+{
+  std::vector<cmSourceFile const*> xamlObjs;
+  this->GeneratorTarget->GetXamlSources(xamlObjs, "");
+  if (!xamlObjs.empty())
+    {
+    this->WriteString("<ItemGroup>\n", 1);
+    for (std::vector<cmSourceFile const*>::const_iterator oi = xamlObjs.begin();
+      oi != xamlObjs.end(); ++oi)
+      {
+      std::string obj = (*oi)->GetFullPath();
+      std::string xamlType;
+      const char * xamlTypeProperty = (*oi)->GetProperty("VS_XAML_TYPE");
+      if (xamlTypeProperty == nullptr)
+        {
+        xamlType = "Page";
+        }
+      else
+        {
+        xamlType = xamlTypeProperty;
+        }
+
+      this->WriteSource(xamlType, *oi, ">\n");
+      this->WriteString("<SubType>Designer</SubType>\n", 3);
+      this->WriteString("</", 2);
+      (*this->BuildFileStream) << xamlType << ">\n";
+
+      }
+    this->WriteString("</ItemGroup>\n", 1);
+    }
 }
 
 void cmVisualStudio10TargetGenerator::WriteTargetSpecificReferences()
@@ -1245,10 +1277,20 @@ WriteGroupSources(const char* name,
 
 void cmVisualStudio10TargetGenerator::WriteHeaderSource(cmSourceFile const* sf)
 {
-  if(this->IsResxHeader(sf->GetFullPath()))
+  const std::string& fileName = sf->GetFullPath();
+  if (this->IsResxHeader(fileName))
     {
     this->WriteSource("ClInclude", sf, ">\n");
     this->WriteString("<FileType>CppForm</FileType>\n", 3);
+    this->WriteString("</ClInclude>\n", 2);
+    }
+  else if (this->IsXamlHeader(fileName))
+    {
+    this->WriteSource("ClInclude", sf, ">\n");
+    this->WriteString("<DependentUpon>", 3);
+    std::string xamlFileName = fileName.substr(0, fileName.find_last_of("."));
+    (*this->BuildFileStream) << xamlFileName << "</DependentUpon>\n";
+
     this->WriteString("</ClInclude>\n", 2);
     }
   else
@@ -1717,6 +1759,18 @@ bool cmVisualStudio10TargetGenerator::OutputSourceSpecificFlags(
                                     this->Platform);
       }
     }
+    
+  if (this->IsXamlSource(source->GetFullPath()))
+    {
+    (*this->BuildFileStream) << firstString;
+    firstString = ""; // only do firstString once
+    hasFlags = true;
+    this->WriteString("<DependentUpon>", 3);
+    const std::string& fileName = source->GetFullPath();
+    std::string xamlFileName = fileName.substr(0, fileName.find_last_of("."));
+    (*this->BuildFileStream) << xamlFileName << "</DependentUpon>\n";
+    }
+
   return hasFlags;
 }
 
@@ -2865,6 +2919,28 @@ bool cmVisualStudio10TargetGenerator::
   std::set<std::string>::const_iterator it =
                                         expectedResxHeaders.find(headerFile);
   return it != expectedResxHeaders.end();
+}
+
+bool cmVisualStudio10TargetGenerator::
+IsXamlHeader(const std::string& headerFile)
+{
+  std::set<std::string> expectedXamlHeaders;
+  this->GeneratorTarget->GetExpectedXamlHeaders(expectedXamlHeaders, "");
+
+  std::set<std::string>::const_iterator it =
+    expectedXamlHeaders.find(headerFile);
+  return it != expectedXamlHeaders.end();
+}
+
+bool cmVisualStudio10TargetGenerator::
+IsXamlSource(const std::string& sourceFile)
+{
+  std::set<std::string> expectedXamlSources;
+  this->GeneratorTarget->GetExpectedXamlSources(expectedXamlSources, "");
+
+  std::set<std::string>::const_iterator it =
+    expectedXamlSources.find(sourceFile);
+  return it != expectedXamlSources.end();
 }
 
 void cmVisualStudio10TargetGenerator::WriteApplicationTypeSettings()
