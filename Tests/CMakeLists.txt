@@ -1857,6 +1857,17 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
       add_test_VSWinStorePhone(vs12-store81-X86 "Visual Studio 12 2013" WindowsStore 8.1)
       add_test_VSWinStorePhone(vs12-store81-ARM "Visual Studio 12 2013 ARM" WindowsStore 8.1)
       add_test_VSWinStorePhone(vs12-store81-X64 "Visual Studio 12 2013 Win64" WindowsStore 8.1)
+
+      add_test(NAME VSXaml COMMAND ${CMAKE_CTEST_COMMAND}
+        --build-and-test
+          "${CMake_SOURCE_DIR}/Tests/VSXaml"
+          "${CMake_BINARY_DIR}/Tests/VSXaml"
+          --build-generator "Visual Studio 12 2013"
+          --build-project VSXaml
+          --build-config $<CONFIGURATION>
+          --build-options -DCMAKE_SYSTEM_NAME=WindowsStore
+                          -DCMAKE_SYSTEM_VERSION=8.1
+        )
     endif()
     if(vs14 AND ws10_0)
       add_test_VSWinStorePhone(vs14-store10_0-X86 "Visual Studio 14 2015" WindowsStore 10.0)
