@@ -1250,6 +1250,7 @@ void cmVisualStudio10TargetGenerator::WriteExtraSource(cmSourceFile const* sf)
     {
     tool = "XML";
     }
+
   if(this->NsightTegra)
     {
     // Nsight Tegra needs specific file types to check up-to-dateness.
@@ -1271,6 +1272,12 @@ void cmVisualStudio10TargetGenerator::WriteExtraSource(cmSourceFile const* sf)
       {
       tool = "ClCompile";
       }
+    }
+
+  const char* toolOverride = sf->GetProperty("VS_TOOL_OVERRIDE");
+  if(toolOverride && *toolOverride)
+    {
+    tool = toolOverride;
     }
 
   std::string deployContent;
