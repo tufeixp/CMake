@@ -2561,7 +2561,8 @@ cmVisualStudio10TargetGenerator::ComputeLinkOptions(std::string const& config)
 
     // A Windows Runtime component uses internal .NET metadata,
     // so does not have an import library.
-    if(this->Target->GetPropertyAsBool("VS_WINRT_COMPONENT"))
+    if(this->Target->GetPropertyAsBool("VS_WINRT_COMPONENT") &&
+       this->Target->GetType() != cmTarget::EXECUTABLE)
       {
       linkOptions.AddFlag("GenerateWindowsMetadata", "true");
       }
@@ -2574,8 +2575,8 @@ cmVisualStudio10TargetGenerator::ComputeLinkOptions(std::string const& config)
       linkOptions.AddFlag("GenerateWindowsMetadata", "false");
       }
 
-    if (this->GlobalGenerator->TargetsWindowsPhone() &&
-        this->GlobalGenerator->GetSystemVersion() == "8.0")
+    if(this->GlobalGenerator->TargetsWindowsPhone() &&
+       this->GlobalGenerator->GetSystemVersion() == "8.0")
       {
       // WindowsPhone 8.0 does not have ole32.
       linkOptions.AppendFlag("IgnoreSpecificDefaultLibraries", "ole32.lib");
