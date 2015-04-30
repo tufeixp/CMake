@@ -36,6 +36,8 @@ public:
 
   virtual const char* GetToolsVersion() { return "14.0"; }
 protected:
+  virtual bool InitializeWindowsStore(cmMakefile* mf);
+  virtual bool SelectWindowsStoreToolset(std::string& toolset) const;
   virtual const char* GetIDEVersion() { return "14.0"; }
 private:
   class Factory;

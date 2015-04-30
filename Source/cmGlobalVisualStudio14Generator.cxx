@@ -109,6 +109,44 @@ cmGlobalVisualStudio14Generator::MatchesGeneratorName(
 }
 
 //----------------------------------------------------------------------------
+bool cmGlobalVisualStudio14Generator::InitializeWindowsStore(cmMakefile* mf)
+{
+  if(!this->SelectWindowsStoreToolset(this->DefaultPlatformToolset))
+    {
+    std::ostringstream  e;
+    if(this->DefaultPlatformToolset.empty())
+      {
+      e << this->GetName() << " supports Windows Store '8.0', '8.1' and '10.0',"
+        " but not '" << this->SystemVersion <<
+        "'.  Check CMAKE_SYSTEM_VERSION.";
+      }
+    else
+      {
+      e << "A Windows Store component with CMake requires both the Windows "
+        << "Desktop SDK as well as the Windows Store '" << this->SystemVersion
+        << "' SDK. Please make sure that you have both installed";
+      }
+    mf->IssueMessage(cmake::FATAL_ERROR, e.str());
+    return false;
+    }
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool
+cmGlobalVisualStudio14Generator::SelectWindowsStoreToolset(
+std::string& toolset) const
+{
+  if(this->SystemVersion == "10.0")
+    {
+    toolset = "v140";
+    return true;
+    }
+  return
+    this->cmGlobalVisualStudio12Generator::SelectWindowsStoreToolset(toolset);
+}
+
+//----------------------------------------------------------------------------
 void cmGlobalVisualStudio14Generator::WriteSLNHeader(std::ostream& fout)
 {
   // Visual Studio 14 writes .sln format 12.00
