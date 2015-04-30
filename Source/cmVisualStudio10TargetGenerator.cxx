@@ -3215,8 +3215,8 @@ void cmVisualStudio10TargetGenerator::WriteMissingFilesWS10_0()
     "\t\t<Logo>" << artifactDirXML << "\\StoreLogo.png</Logo>\n"
     "\t</Properties>\n"
     "\t<Dependencies>\n"
-    "\t\t<TargetPlatform Name=\"Windows.Universal\" "
-    "MinVersion=\"0.0.0.0\" MaxVersionTested=\"10.0.0.0\" />\n"
+    "\t\t<TargetDeviceFamily Name=\"Windows.Universal\" "
+    "MinVersion=\"10.0.10065.0\" MaxVersionTested=\"10.0.65535.65535\" />\n"
     "\t</Dependencies>\n"
 
     "\t<Resources>\n"
@@ -3230,7 +3230,6 @@ void cmVisualStudio10TargetGenerator::WriteMissingFilesWS10_0()
     "\t\t\t\tDisplayName=\"" << targetNameXML << "\"\n"
     "\t\t\t\tDescription=\"" << targetNameXML << "\"\n"
     "\t\t\t\tBackgroundColor=\"#336699\"\n"
-    "\t\t\t\tForegroundText=\"light\"\n"
     "\t\t\t\tSquare150x150Logo=\"" << artifactDirXML << "\\Logo.png\"\n"
     "\t\t\t\tSquare44x44Logo=\"" << artifactDirXML << "\\SmallLogo.png\">\n"
     "\t\t\t\t<uap:SplashScreen"
