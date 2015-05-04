@@ -459,7 +459,9 @@ void cmGlobalVisualStudio8Generator::WriteProjectDepends(
   for(OrderedTargetDependSet::const_iterator i = depends.begin();
       i != depends.end(); ++i)
     {
-    if((*i)->GetType() == cmTarget::INTERFACE_LIBRARY)
+    if((*i)->GetType() == cmTarget::INTERFACE_LIBRARY ||
+      ((*i)->GetType() == cmTarget::STATIC_LIBRARY &&
+       t.GetType() == cmTarget::STATIC_LIBRARY))
       {
       continue;
       }

@@ -2699,10 +2699,13 @@ void cmVisualStudio10TargetGenerator::WriteProjectReferences()
        i != depends.end(); ++i)
     {
     cmTarget const* dt = *i;
-    if(dt->GetType() == cmTarget::INTERFACE_LIBRARY)
+    if(dt->GetType() == cmTarget::INTERFACE_LIBRARY ||
+      (dt->GetType() == cmTarget::STATIC_LIBRARY &&
+       this->Target->GetType() == cmTarget::STATIC_LIBRARY))
       {
       continue;
       }
+
     // skip fortran targets as they can not be processed by MSBuild
     // the only reference will be in the .sln file
     if(static_cast<cmGlobalVisualStudioGenerator*>(this->GlobalGenerator)
