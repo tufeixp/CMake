@@ -2515,11 +2515,12 @@ cmVisualStudio10TargetGenerator::WriteLinkOptions(std::string const& config)
   linkOptions.OutputFlagMap(*this->BuildFileStream, "      ");
 
   this->WriteString("</Link>\n", 2);
+
   if(!this->GlobalGenerator->NeedLinkLibraryDependencies(*this->Target))
     {
     this->WriteString("<ProjectReference>\n", 2);
     this->WriteString(
-      "  <LinkLibraryDependencies>false</LinkLibraryDependencies>\n", 2);
+      "<LinkLibraryDependencies>false</LinkLibraryDependencies>\n", 3);
     this->WriteString("</ProjectReference>\n", 2);
     }
 }
@@ -2529,22 +2530,30 @@ void cmVisualStudio10TargetGenerator::AddLibraries(
   std::vector<std::string>& libVec)
 {
   typedef cmComputeLinkInformation::ItemVector ItemVector;
+  bool useReferenceLinking = this->GlobalGenerator->GetCMakeInstance()->
+     GetPropertyAsBool("VS_PROJECT_REFERENCE_LINKING");
   ItemVector libs = cli.GetItems();
   for(ItemVector::const_iterator l = libs.begin(); l != libs.end(); ++l)
     {
-    if(l->IsPath)
+    if(!useReferenceLinking ||
+        l->Target == NULL ||
+       (l->Target->GetType() == cmTarget::INTERFACE_LIBRARY) ||
+        l->Target->IsImported())
       {
-      std::string path = this->LocalGenerator->
-        Convert(l->Value.c_str(),
-                cmLocalGenerator::START_OUTPUT,
-                cmLocalGenerator::UNCHANGED);
-      this->ConvertToWindowsSlash(path);
-      libVec.push_back(path);
-      }
-    else if (!l->Target
-        || l->Target->GetType() != cmTarget::INTERFACE_LIBRARY)
-      {
-      libVec.push_back(l->Value);
+      if(l->IsPath)
+        {
+        std::string path = this->LocalGenerator->
+          Convert(l->Value.c_str(),
+                  cmLocalGenerator::START_OUTPUT,
+                  cmLocalGenerator::UNCHANGED);
+        this->ConvertToWindowsSlash(path);
+        libVec.push_back(path);
+        }
+      else if(!l->Target
+          || l->Target->GetType() != cmTarget::INTERFACE_LIBRARY)
+        {
+        libVec.push_back(l->Value);
+        }
       }
     }
 }
@@ -2734,6 +2743,18 @@ void cmVisualStudio10TargetGenerator::WriteProjectReferences()
     (*this->BuildFileStream)
       << this->GlobalGenerator->GetGUID(name.c_str())
       << "</Project>\n";
+    cmake* instance = this->GlobalGenerator->GetCMakeInstance();
+    if(instance->GetPropertyAsBool("VS_PROJECT_REFERENCE_LINKING"))
+      {
+      this->WriteString(
+        "<LinkLibraryDependencies>true</LinkLibraryDependencies>\n", 3);
+      // If the target is marked as needing to use the library dependencies
+      // set the appropriate flag
+      this->WriteString("<UseLibraryDependencyInputs>", 3);
+      (*this->BuildFileStream) <<
+        ((*i)->GetPropertyAsBool("VS_USE_LIBRARY_DEPENDENCY_INPUTS") ?
+        "true" : "false") << "</UseLibraryDependencyInputs>\n";
+      }
     this->WriteString("</ProjectReference>\n", 2);
     }
   this->WriteString("</ItemGroup>\n", 1);
