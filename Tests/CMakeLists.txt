@@ -1871,7 +1871,7 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     endif()
     if(vs14 AND ws10_0)
       add_test_VSWinStorePhone(vs14-store10_0-X86 "Visual Studio 14 2015" WindowsStore 10.0)
-      add_test_VSWinStorePhone(vs14-store10_0-ARM "Visual Studio 12 2015 ARM" WindowsStore 10.0)
+      add_test_VSWinStorePhone(vs14-store10_0-ARM "Visual Studio 14 2015 ARM" WindowsStore 10.0)
       add_test_VSWinStorePhone(vs14-store10_0-X64 "Visual Studio 14 2015 Win64" WindowsStore 10.0)
     endif()
     if(vs11 AND wp80)
