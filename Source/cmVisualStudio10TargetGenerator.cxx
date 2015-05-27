@@ -452,6 +452,7 @@ void cmVisualStudio10TargetGenerator::Generate()
   this->WriteString("<Import Project=\"" VS10_USER_PROPS "\""
                     " Condition=\"exists('" VS10_USER_PROPS "')\""
                     " Label=\"LocalAppDataPlatform\" />\n", 2);
+  this->WritePlatformExtensions();
   this->WriteString("</ImportGroup>\n", 1);
   this->WriteString("<PropertyGroup Label=\"UserMacros\" />\n", 1);
   this->WriteWinRTPackageCertificateKeyFile();
@@ -464,6 +465,7 @@ void cmVisualStudio10TargetGenerator::Generate()
   this->WriteXamlFilesGroup();
   this->WriteWinRTReferences();
   this->WriteProjectReferences();
+  this->WriteSDKReferences();
   this->WriteString(
     "<Import Project=\"$(VCTargetsPath)\\Microsoft.Cpp.targets\""
     " />\n", 1);
@@ -2734,6 +2736,93 @@ void cmVisualStudio10TargetGenerator::WriteProjectReferences()
     }
   this->WriteString("</ItemGroup>\n", 1);
 }
+
+void cmVisualStudio10TargetGenerator::WritePlatformExtensions()
+{
+  // This only applies to Windows 10 apps
+  if(this->GlobalGenerator->TargetsWindowsStore() &&
+     this->GlobalGenerator->GetSystemVersion() == "10.0")
+    {
+    const char* desktopExtensionsVersion =
+      this->Target->GetProperty("VS_DESKTOP_EXTENSIONS_VERSION");
+    if(desktopExtensionsVersion != nullptr)
+      {
+      this->WriteSinglePlatformExtension("WindowsDesktop",
+                                         desktopExtensionsVersion);
+      }
+    const char* mobileExtensionsVersion =
+      this->Target->GetProperty("VS_MOBILE_EXTENSIONS_VERSION");
+    if(mobileExtensionsVersion != nullptr)
+      {
+      this->WriteSinglePlatformExtension("WindowsMobile",
+                                         mobileExtensionsVersion);
+      }
+    }
+}
+
+void cmVisualStudio10TargetGenerator::WriteSinglePlatformExtension(
+  std::string const& extension,
+  std::string const& version
+  )
+{
+      this->WriteString("<Import Project=", 2);
+      (*this->BuildFileStream)
+        << "\"$([Microsoft.Build.Utilities.ToolLocationHelper]"
+        << "::GetPlatformExtensionSDKLocation(`"
+        << extension <<", Version=" << version
+        << "`, $(TargetPlatformIdentifier), $(TargetPlatformVersion), null, "
+        << "$(ExtensionSDKDirectoryRoot), null))"
+        << "\\DesignTime\\CommonConfiguration\\Neutral\\"
+        << extension << ".props\" "
+        << "Condition=\"exists('$("
+        << "[Microsoft.Build.Utilities.ToolLocationHelper]"
+        << "::GetPlatformExtensionSDKLocation(`"
+        << extension << ", Version=" << version
+        << "`, $(TargetPlatformIdentifier), $(TargetPlatformVersion), null, "
+        << "$(ExtensionSDKDirectoryRoot), null))"
+        << "\\DesignTime\\CommonConfiguration\\Neutral\\"
+        << extension << ".props')\" />\n";
+}
+
+void cmVisualStudio10TargetGenerator::WriteSDKReferences()
+{
+  // This only applies to Windows 10 apps
+  if(this->GlobalGenerator->TargetsWindowsStore() &&
+     this->GlobalGenerator->GetSystemVersion() == "10.0")
+    {
+    const char* desktopExtensionsVersion =
+      this->Target->GetProperty("VS_DESKTOP_EXTENSIONS_VERSION");
+    const char* mobileExtensionsVersion =
+      this->Target->GetProperty("VS_MOBILE_EXTENSIONS_VERSION");
+    if(desktopExtensionsVersion != nullptr ||
+       mobileExtensionsVersion != nullptr)
+      {
+      this->WriteString("<ItemGroup>\n", 1);
+      if(desktopExtensionsVersion != nullptr)
+        {
+        this->WriteSingleSDKReference("WindowsDesktop",
+                                      desktopExtensionsVersion);
+        }
+      if(mobileExtensionsVersion != nullptr)
+        {
+        this->WriteSingleSDKReference("WindowsMobile",
+                                      mobileExtensionsVersion);
+        }
+      this->WriteString("</ItemGroup>\n", 1);
+      }
+    }
+}
+
+void cmVisualStudio10TargetGenerator::WriteSingleSDKReference(
+  std::string const& extension,
+  std::string const& version
+  )
+{
+  this->WriteString("<SDKReference Include=\"", 2);
+  (*this->BuildFileStream) << extension
+    << ", Version=" << version << "\" />\n";
+}
+
 
 void cmVisualStudio10TargetGenerator::WriteWinRTPackageCertificateKeyFile()
 {
