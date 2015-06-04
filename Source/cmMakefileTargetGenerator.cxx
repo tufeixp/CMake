@@ -668,6 +668,15 @@ cmMakefileTargetGenerator
     this->Convert(targetFullPathCompilePDB,
                   cmLocalGenerator::START_OUTPUT,
                   cmLocalGenerator::SHELL);
+
+  if (this->LocalGenerator->IsMinGWMake() &&
+      cmHasLiteralSuffix(targetOutPathCompilePDB, "\\"))
+    {
+    // mingw32-make incorrectly interprets 'a\ b c' as 'a b' and 'c'
+    // (but 'a\ b "c"' as 'a\', 'b', and 'c'!).  Workaround this by
+    // avoiding a trailing backslash in the argument.
+    targetOutPathCompilePDB[targetOutPathCompilePDB.size()-1] = '/';
+    }
   }
   cmLocalGenerator::RuleVariables vars;
   vars.RuleLauncher = "RULE_LAUNCH_COMPILE";
