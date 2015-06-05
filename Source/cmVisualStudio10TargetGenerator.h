@@ -119,6 +119,7 @@ private:
   void WriteEmbeddedResourceGroup();
   void WriteWinRTReferences();
   void WriteWinRTPackageCertificateKeyFile();
+  void WriteXamlFilesGroup();
   void WritePathAndIncrementalLinkOptions();
   void WriteItemDefinitionGroups();
   void VerifyNecessaryFiles();
@@ -128,6 +129,12 @@ private:
   void WriteMissingFilesWS80();
   void WriteMissingFilesWS81();
   void WriteMissingFilesWS10_0();
+  void WritePlatformExtensions();
+  void WriteSinglePlatformExtension(std::string const& extension,
+                                    std::string const& version);
+  void WriteSDKReferences();
+  void WriteSingleSDKReference(std::string const& extension,
+                               std::string const& version);
   void WriteCommonMissingFiles(const std::string& manifestFile);
   void WriteTargetSpecificReferences();
 
@@ -171,6 +178,8 @@ private:
   void AddMissingSourceGroups(std::set<cmSourceGroup*>& groupsUsed,
                               const std::vector<cmSourceGroup>& allGroups);
   bool IsResxHeader(const std::string& headerFile);
+  bool IsXamlHeader(const std::string& headerFile);
+  bool IsXamlSource(const std::string& headerFile);
 
   cmIDEFlagTable const* GetClFlagTable() const;
   cmIDEFlagTable const* GetRcFlagTable() const;

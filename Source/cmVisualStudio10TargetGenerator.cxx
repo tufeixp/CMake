@@ -472,6 +472,7 @@ void cmVisualStudio10TargetGenerator::Generate()
   this->WriteString("<Import Project=\"" VS10_USER_PROPS "\""
                     " Condition=\"exists('" VS10_USER_PROPS "')\""
                     " Label=\"LocalAppDataPlatform\" />\n", 2);
+  this->WritePlatformExtensions();
   this->WriteString("</ImportGroup>\n", 1);
   this->WriteString("<PropertyGroup Label=\"UserMacros\" />\n", 1);
   this->WriteWinRTPackageCertificateKeyFile();
@@ -481,8 +482,10 @@ void cmVisualStudio10TargetGenerator::Generate()
   this->WriteAllSources();
   this->WriteDotNetReferences();
   this->WriteEmbeddedResourceGroup();
+  this->WriteXamlFilesGroup();
   this->WriteWinRTReferences();
   this->WriteProjectReferences();
+  this->WriteSDKReferences();
   this->WriteString(
     "<Import Project=\"$(VCTargetsPath)\\Microsoft.Cpp.targets\""
     " />\n", 1);
@@ -542,8 +545,7 @@ void cmVisualStudio10TargetGenerator::WriteEmbeddedResourceGroup()
 
       this->WriteString("<DependentUpon>", 3);
       std::string hFileName = obj.substr(0, obj.find_last_of(".")) + ".h";
-      (*this->BuildFileStream ) << hFileName;
-      this->WriteString("</DependentUpon>\n", 3);
+      (*this->BuildFileStream) << hFileName << "</DependentUpon>\n";
 
       std::vector<std::string> const * configs =
         this->GlobalGenerator->GetConfigurations();
@@ -571,6 +573,38 @@ void cmVisualStudio10TargetGenerator::WriteSingleEmbeddedResource(
   (*this->BuildFileStream) << "%(Filename)";
   (*this->BuildFileStream) << ".resources";
   (*this->BuildFileStream) << "</LogicalName>\n";
+}
+
+void cmVisualStudio10TargetGenerator::WriteXamlFilesGroup()
+{
+  std::vector<cmSourceFile const*> xamlObjs;
+  this->GeneratorTarget->GetXamlSources(xamlObjs, "");
+  if (!xamlObjs.empty())
+    {
+    this->WriteString("<ItemGroup>\n", 1);
+    for (std::vector<cmSourceFile const*>::const_iterator
+           oi = xamlObjs.begin(); oi != xamlObjs.end(); ++oi)
+      {
+      std::string obj = (*oi)->GetFullPath();
+      std::string xamlType;
+      const char * xamlTypeProperty = (*oi)->GetProperty("VS_XAML_TYPE");
+      if (xamlTypeProperty)
+        {
+        xamlType = xamlTypeProperty;
+        }
+      else
+        {
+        xamlType = "Page";
+        }
+
+      this->WriteSource(xamlType, *oi, ">\n");
+      this->WriteString("<SubType>Designer</SubType>\n", 3);
+      this->WriteString("</", 2);
+      (*this->BuildFileStream) << xamlType << ">\n";
+
+      }
+    this->WriteString("</ItemGroup>\n", 1);
+    }
 }
 
 void cmVisualStudio10TargetGenerator::WriteTargetSpecificReferences()
@@ -1245,10 +1279,19 @@ WriteGroupSources(const char* name,
 
 void cmVisualStudio10TargetGenerator::WriteHeaderSource(cmSourceFile const* sf)
 {
-  if(this->IsResxHeader(sf->GetFullPath()))
+  std::string const& fileName = sf->GetFullPath();
+  if (this->IsResxHeader(fileName))
     {
     this->WriteSource("ClInclude", sf, ">\n");
     this->WriteString("<FileType>CppForm</FileType>\n", 3);
+    this->WriteString("</ClInclude>\n", 2);
+    }
+  else if (this->IsXamlHeader(fileName))
+    {
+    this->WriteSource("ClInclude", sf, ">\n");
+    this->WriteString("<DependentUpon>", 3);
+    std::string xamlFileName = fileName.substr(0, fileName.find_last_of("."));
+    (*this->BuildFileStream) << xamlFileName << "</DependentUpon>\n";
     this->WriteString("</ClInclude>\n", 2);
     }
   else
@@ -1724,6 +1767,18 @@ bool cmVisualStudio10TargetGenerator::OutputSourceSpecificFlags(
                                     this->Platform);
       }
     }
+
+  if (this->IsXamlSource(source->GetFullPath()))
+    {
+    (*this->BuildFileStream) << firstString;
+    firstString = ""; // only do firstString once
+    hasFlags = true;
+    this->WriteString("<DependentUpon>", 3);
+    const std::string& fileName = source->GetFullPath();
+    std::string xamlFileName = fileName.substr(0, fileName.find_last_of("."));
+    (*this->BuildFileStream) << xamlFileName << "</DependentUpon>\n";
+    }
+
   return hasFlags;
 }
 
@@ -2803,6 +2858,93 @@ void cmVisualStudio10TargetGenerator::WriteProjectReferences()
   this->WriteString("</ItemGroup>\n", 1);
 }
 
+void cmVisualStudio10TargetGenerator::WritePlatformExtensions()
+{
+  // This only applies to Windows 10 apps
+  if(this->GlobalGenerator->TargetsWindowsStore() &&
+     this->GlobalGenerator->GetSystemVersion() == "10.0")
+    {
+    const char* desktopExtensionsVersion =
+      this->Target->GetProperty("VS_DESKTOP_EXTENSIONS_VERSION");
+    if(desktopExtensionsVersion != nullptr)
+      {
+      this->WriteSinglePlatformExtension("WindowsDesktop",
+                                         desktopExtensionsVersion);
+      }
+    const char* mobileExtensionsVersion =
+      this->Target->GetProperty("VS_MOBILE_EXTENSIONS_VERSION");
+    if(mobileExtensionsVersion != nullptr)
+      {
+      this->WriteSinglePlatformExtension("WindowsMobile",
+                                         mobileExtensionsVersion);
+      }
+    }
+}
+
+void cmVisualStudio10TargetGenerator::WriteSinglePlatformExtension(
+  std::string const& extension,
+  std::string const& version
+  )
+{
+      this->WriteString("<Import Project=", 2);
+      (*this->BuildFileStream)
+        << "\"$([Microsoft.Build.Utilities.ToolLocationHelper]"
+        << "::GetPlatformExtensionSDKLocation(`"
+        << extension <<", Version=" << version
+        << "`, $(TargetPlatformIdentifier), $(TargetPlatformVersion), null, "
+        << "$(ExtensionSDKDirectoryRoot), null))"
+        << "\\DesignTime\\CommonConfiguration\\Neutral\\"
+        << extension << ".props\" "
+        << "Condition=\"exists('$("
+        << "[Microsoft.Build.Utilities.ToolLocationHelper]"
+        << "::GetPlatformExtensionSDKLocation(`"
+        << extension << ", Version=" << version
+        << "`, $(TargetPlatformIdentifier), $(TargetPlatformVersion), null, "
+        << "$(ExtensionSDKDirectoryRoot), null))"
+        << "\\DesignTime\\CommonConfiguration\\Neutral\\"
+        << extension << ".props')\" />\n";
+}
+
+void cmVisualStudio10TargetGenerator::WriteSDKReferences()
+{
+  // This only applies to Windows 10 apps
+  if(this->GlobalGenerator->TargetsWindowsStore() &&
+     this->GlobalGenerator->GetSystemVersion() == "10.0")
+    {
+    const char* desktopExtensionsVersion =
+      this->Target->GetProperty("VS_DESKTOP_EXTENSIONS_VERSION");
+    const char* mobileExtensionsVersion =
+      this->Target->GetProperty("VS_MOBILE_EXTENSIONS_VERSION");
+    if(desktopExtensionsVersion != nullptr ||
+       mobileExtensionsVersion != nullptr)
+      {
+      this->WriteString("<ItemGroup>\n", 1);
+      if(desktopExtensionsVersion != nullptr)
+        {
+        this->WriteSingleSDKReference("WindowsDesktop",
+                                      desktopExtensionsVersion);
+        }
+      if(mobileExtensionsVersion != nullptr)
+        {
+        this->WriteSingleSDKReference("WindowsMobile",
+                                      mobileExtensionsVersion);
+        }
+      this->WriteString("</ItemGroup>\n", 1);
+      }
+    }
+}
+
+void cmVisualStudio10TargetGenerator::WriteSingleSDKReference(
+  std::string const& extension,
+  std::string const& version
+  )
+{
+  this->WriteString("<SDKReference Include=\"", 2);
+  (*this->BuildFileStream) << extension
+    << ", Version=" << version << "\" />\n";
+}
+
+
 void cmVisualStudio10TargetGenerator::WriteWinRTPackageCertificateKeyFile()
 {
   if((this->GlobalGenerator->TargetsWindowsStore() ||
@@ -2873,6 +3015,28 @@ bool cmVisualStudio10TargetGenerator::
   std::set<std::string>::const_iterator it =
                                         expectedResxHeaders.find(headerFile);
   return it != expectedResxHeaders.end();
+}
+
+bool cmVisualStudio10TargetGenerator::
+IsXamlHeader(const std::string& headerFile)
+{
+  std::set<std::string> expectedXamlHeaders;
+  this->GeneratorTarget->GetExpectedXamlHeaders(expectedXamlHeaders, "");
+
+  std::set<std::string>::const_iterator it =
+    expectedXamlHeaders.find(headerFile);
+  return it != expectedXamlHeaders.end();
+}
+
+bool cmVisualStudio10TargetGenerator::
+IsXamlSource(const std::string& sourceFile)
+{
+  std::set<std::string> expectedXamlSources;
+  this->GeneratorTarget->GetExpectedXamlSources(expectedXamlSources, "");
+
+  std::set<std::string>::const_iterator it =
+    expectedXamlSources.find(sourceFile);
+  return it != expectedXamlSources.end();
 }
 
 void cmVisualStudio10TargetGenerator::WriteApplicationTypeSettings()
@@ -3335,8 +3499,8 @@ void cmVisualStudio10TargetGenerator::WriteMissingFilesWS10_0()
     "\t\t<Logo>" << artifactDirXML << "\\StoreLogo.png</Logo>\n"
     "\t</Properties>\n"
     "\t<Dependencies>\n"
-    "\t\t<TargetPlatform Name=\"Windows.Universal\" "
-    "MinVersion=\"0.0.0.0\" MaxVersionTested=\"10.0.0.0\" />\n"
+    "\t\t<TargetDeviceFamily Name=\"Windows.Universal\" "
+    "MinVersion=\"10.0.10065.0\" MaxVersionTested=\"10.0.65535.65535\" />\n"
     "\t</Dependencies>\n"
 
     "\t<Resources>\n"
@@ -3350,7 +3514,6 @@ void cmVisualStudio10TargetGenerator::WriteMissingFilesWS10_0()
     "\t\t\t\tDisplayName=\"" << targetNameXML << "\"\n"
     "\t\t\t\tDescription=\"" << targetNameXML << "\"\n"
     "\t\t\t\tBackgroundColor=\"#336699\"\n"
-    "\t\t\t\tForegroundText=\"light\"\n"
     "\t\t\t\tSquare150x150Logo=\"" << artifactDirXML << "\\Logo.png\"\n"
     "\t\t\t\tSquare44x44Logo=\"" << artifactDirXML << "\\SmallLogo.png\">\n"
     "\t\t\t\t<uap:SplashScreen"
