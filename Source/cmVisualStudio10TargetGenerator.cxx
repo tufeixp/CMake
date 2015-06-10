@@ -2745,14 +2745,14 @@ void cmVisualStudio10TargetGenerator::WritePlatformExtensions()
     {
     const char* desktopExtensionsVersion =
       this->Target->GetProperty("VS_DESKTOP_EXTENSIONS_VERSION");
-    if(desktopExtensionsVersion != nullptr)
+    if(desktopExtensionsVersion)
       {
       this->WriteSinglePlatformExtension("WindowsDesktop",
                                          desktopExtensionsVersion);
       }
     const char* mobileExtensionsVersion =
       this->Target->GetProperty("VS_MOBILE_EXTENSIONS_VERSION");
-    if(mobileExtensionsVersion != nullptr)
+    if(mobileExtensionsVersion)
       {
       this->WriteSinglePlatformExtension("WindowsMobile",
                                          mobileExtensionsVersion);
@@ -2794,16 +2794,15 @@ void cmVisualStudio10TargetGenerator::WriteSDKReferences()
       this->Target->GetProperty("VS_DESKTOP_EXTENSIONS_VERSION");
     const char* mobileExtensionsVersion =
       this->Target->GetProperty("VS_MOBILE_EXTENSIONS_VERSION");
-    if(desktopExtensionsVersion != nullptr ||
-       mobileExtensionsVersion != nullptr)
+    if(desktopExtensionsVersion || mobileExtensionsVersion)
       {
       this->WriteString("<ItemGroup>\n", 1);
-      if(desktopExtensionsVersion != nullptr)
+      if(desktopExtensionsVersion)
         {
         this->WriteSingleSDKReference("WindowsDesktop",
                                       desktopExtensionsVersion);
         }
-      if(mobileExtensionsVersion != nullptr)
+      if(mobileExtensionsVersion)
         {
         this->WriteSingleSDKReference("WindowsMobile",
                                       mobileExtensionsVersion);
@@ -2996,6 +2995,22 @@ void cmVisualStudio10TargetGenerator::WriteApplicationTypeSettings()
     {
     this->WriteString("<WindowsSDKDesktopARMSupport>true"
                       "</WindowsSDKDesktopARMSupport>\n", 2);
+    }
+  const char* targetPlatformVersion =
+      this->Target->GetProperty("VS_TARGET_PLATFORM_VERSION");
+  if(targetPlatformVersion)
+    {
+    this->WriteString("<TargetPlatformVersion>", 2);
+    (*this->BuildFileStream) << cmVS10EscapeXML(targetPlatformVersion) <<
+      "</TargetPlatformVersion>\n";
+    }
+  const char* targetPlatformMinVersion =
+      this->Target->GetProperty("VS_TARGET_PLATFORM_MIN_VERSION");
+  if(targetPlatformMinVersion)
+    {
+    this->WriteString("<TargetPlatformMinVersion>", 2);
+    (*this->BuildFileStream) << cmVS10EscapeXML(targetPlatformMinVersion) <<
+      "</TargetPlatformMinVersion>\n";
     }
 }
 
