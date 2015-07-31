@@ -3039,13 +3039,11 @@ void cmVisualStudio10TargetGenerator::WriteApplicationTypeSettings()
                              << "</ApplicationType>\n";
     this->WriteString("<DefaultLanguage>en-US"
                       "</DefaultLanguage>\n", 2);
+    this->WriteString("<ApplicationTypeRevision>", 2);
+    (*this->BuildFileStream) << cmVS10EscapeXML(v)
+                             << "</ApplicationTypeRevision>\n";
     if(v == "10.0")
       {
-      // Windows 10.0 apps are marked as 8.2 in their project
-      this->WriteString("<ApplicationTypeRevision>", 2);
-        (*this->BuildFileStream) << cmVS10EscapeXML("8.2")
-        << "</ApplicationTypeRevision>\n";
-
       // Visual Studio 14.0 is necessary for building 10.0 apps
       this->WriteString("<MinimumVisualStudioVersion>14.0"
         "</MinimumVisualStudioVersion>\n", 2);
@@ -3057,10 +3055,6 @@ void cmVisualStudio10TargetGenerator::WriteApplicationTypeSettings()
       }
     else if(v == "8.1")
       {
-      this->WriteString("<ApplicationTypeRevision>", 2);
-        (*this->BuildFileStream) << cmVS10EscapeXML(v)
-        << "</ApplicationTypeRevision>\n";
-
       // Visual Studio 12.0 is necessary for building 8.1 apps
       this->WriteString("<MinimumVisualStudioVersion>12.0"
                         "</MinimumVisualStudioVersion>\n", 2);
@@ -3072,10 +3066,6 @@ void cmVisualStudio10TargetGenerator::WriteApplicationTypeSettings()
       }
     else if (v == "8.0")
       {
-      this->WriteString("<ApplicationTypeRevision>", 2);
-        (*this->BuildFileStream) << cmVS10EscapeXML(v)
-        << "</ApplicationTypeRevision>\n";
-
       // Visual Studio 11.0 is necessary for building 8.0 apps
       this->WriteString("<MinimumVisualStudioVersion>11.0"
                         "</MinimumVisualStudioVersion>\n", 2);
@@ -3108,18 +3098,30 @@ void cmVisualStudio10TargetGenerator::WriteApplicationTypeSettings()
       this->Target->GetProperty("VS_TARGET_PLATFORM_VERSION");
   if(targetPlatformVersion)
     {
-    this->WriteString("<TargetPlatformVersion>", 2);
+    this->WriteString("<WindowsTargetPlatformVersion>", 2);
     (*this->BuildFileStream) << cmVS10EscapeXML(targetPlatformVersion) <<
-      "</TargetPlatformVersion>\n";
+      "</WindowsTargetPlatformVersion>\n";
+    }
+  else if (isWindowsStore && v == "10.0")
+    {
+      this->WriteString("<WindowsTargetPlatformVersion>", 2);
+      (*this->BuildFileStream) << cmVS10EscapeXML("10.0.10240.0") <<
+        "</WindowsTargetPlatformVersion>\n";
     }
   const char* targetPlatformMinVersion =
       this->Target->GetProperty("VS_TARGET_PLATFORM_MIN_VERSION");
   if(targetPlatformMinVersion)
     {
-    this->WriteString("<TargetPlatformMinVersion>", 2);
+    this->WriteString("<WindowsTargetPlatformMinVersion>", 2);
     (*this->BuildFileStream) << cmVS10EscapeXML(targetPlatformMinVersion) <<
-      "</TargetPlatformMinVersion>\n";
+      "</WindowsTargetPlatformMinVersion>\n";
     }
+  else if (isWindowsStore && v == "10.0")
+  {
+    this->WriteString("<WindowsTargetPlatformMinVersion>", 2);
+    (*this->BuildFileStream) << cmVS10EscapeXML("10.0.10240.0") <<
+      "</WindowsTargetPlatformMinVersion>\n";
+  }
 }
 
 void cmVisualStudio10TargetGenerator::VerifyNecessaryFiles()
@@ -3502,7 +3504,7 @@ void cmVisualStudio10TargetGenerator::WriteMissingFilesWS10_0()
     "\t</Properties>\n"
     "\t<Dependencies>\n"
     "\t\t<TargetDeviceFamily Name=\"Windows.Universal\" "
-    "MinVersion=\"10.0.10065.0\" MaxVersionTested=\"10.0.65535.65535\" />\n"
+    "MinVersion=\"10.0.0.0\" MaxVersionTested=\"10.0.0.0\" />\n"
     "\t</Dependencies>\n"
 
     "\t<Resources>\n"
