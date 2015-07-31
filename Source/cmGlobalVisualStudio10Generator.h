@@ -24,7 +24,7 @@ class cmGlobalVisualStudio10Generator :
   public cmGlobalVisualStudio8Generator
 {
 public:
-  cmGlobalVisualStudio10Generator(const std::string& name,
+  cmGlobalVisualStudio10Generator(cmake* cm, const std::string& name,
     const std::string& platformName);
   static cmGlobalGeneratorFactory* NewFactory();
 
@@ -41,12 +41,13 @@ public:
     const std::string& projectDir,
     const std::string& targetName,
     const std::string& config,
-    bool fast,
+    bool fast, bool verbose,
     std::vector<std::string> const& makeOptions = std::vector<std::string>()
     );
 
   ///! create the correct local generator
-  virtual cmLocalGenerator *CreateLocalGenerator();
+  virtual cmLocalGenerator *CreateLocalGenerator(cmLocalGenerator* parent,
+                                                 cmState::Snapshot snapshot);
 
   /**
    * Try to determine system information such as shared library
@@ -92,18 +93,6 @@ public:
   bool TargetsWindowsStore() const
     { return this->SystemIsWindowsStore; }
 
-  /**
-   * Where does this version of Visual Studio look for macros for the
-   * current user? Returns the empty string if this version of Visual
-   * Studio does not implement support for VB macros.
-   */
-  virtual std::string GetUserMacrosDirectory();
-
-  /**
-   * What is the reg key path to "vsmacros" for this version of Visual
-   * Studio?
-   */
-  virtual std::string GetUserMacrosRegKeyBase();
   virtual const char* GetCMakeCFGIntDir() const
     { return "$(Configuration)";}
   bool Find64BitTools(cmMakefile* mf);
@@ -171,5 +160,7 @@ private:
 
 protected:
   std::vector<std::string> targetPlatforms;
+  // We do not use the reload macros for VS >= 10.
+  virtual std::string GetUserMacrosDirectory() { return ""; }
 };
 #endif

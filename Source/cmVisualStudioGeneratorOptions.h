@@ -73,7 +73,7 @@ public:
   void SetConfigurationAndPlatform(const char* config, const char* platform);
 private:
   cmLocalVisualStudioGenerator* LocalGenerator;
-  cmLocalVisualStudioGenerator::VSVersion Version;
+  cmGlobalVisualStudioGenerator::VSVersion Version;
 
   std::string Configuration;
   std::string Platform;
