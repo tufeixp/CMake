@@ -137,12 +137,20 @@ bool cmGlobalVisualStudio14Generator::InitializeWindowsStore(cmMakefile* mf)
 //----------------------------------------------------------------------------
 bool
 cmGlobalVisualStudio14Generator::SelectWindowsStoreToolset(
-std::string& toolset) const
+  std::string& toolset) const
 {
   if(this->SystemVersion == "10.0")
     {
-    toolset = "v140";
-    return true;
+    if (this->IsWindowsStoreToolsetInstalled() &&
+        this->IsWindowsDesktopToolsetInstalled())
+      {
+      toolset = "v140";
+      return true;
+      }
+    else
+      {
+      return false;
+      }
     }
   return
     this->cmGlobalVisualStudio12Generator::SelectWindowsStoreToolset(toolset);
@@ -161,4 +169,29 @@ void cmGlobalVisualStudio14Generator::WriteSLNHeader(std::ostream& fout)
     {
     fout << "# Visual Studio 14\n";
     }
+}
+//----------------------------------------------------------------------------
+bool
+cmGlobalVisualStudio14Generator::IsWindowsDesktopToolsetInstalled() const
+{
+  const char desktop10Key[] =
+    "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\"
+    "VisualStudio\\14.0\\VC\\Runtimes";
+
+  std::vector<std::string> vc14;
+  return cmSystemTools::GetRegistrySubKeys(desktop10Key,
+    vc14, cmSystemTools::KeyWOW64_32);
+}
+
+//----------------------------------------------------------------------------
+bool
+cmGlobalVisualStudio14Generator::IsWindowsStoreToolsetInstalled() const
+{
+  const char universal10Key[] =
+    "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\"
+    "VisualStudio\\14.0\\Setup\\Build Tools for Windows 10";
+
+  std::vector<std::string> subkeys;
+  return cmSystemTools::GetRegistrySubKeys(universal10Key,
+    subkeys, cmSystemTools::KeyWOW64_32);
 }
