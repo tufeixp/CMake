@@ -547,7 +547,7 @@ endif()
 
 if(CMAKE_BUILD_ON_VISUAL_STUDIO OR MINGW)
   # We need the rpcrt4 library for at least the VS7-VC10 generators.
-  target_link_libraries(CMakeLib rpcrt4)
+  target_link_libraries(CMakeLib rpcrt4 crypt32)
 endif()
 
 #

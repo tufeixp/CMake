@@ -191,6 +191,9 @@ public:
   ///! Compute the md5sum of a file
   static bool ComputeFileMD5(const std::string& source, char* md5out);
 
+  ///! Get the SHA thumbprint for a certificate file
+  static std::string ComputeCertificateThumbprint(const std::string& source);
+
   /** Compute the md5sum of a string.  */
   static std::string ComputeStringMD5(const std::string& input);
 
