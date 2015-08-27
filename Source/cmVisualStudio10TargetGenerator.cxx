@@ -2780,7 +2780,11 @@ void cmVisualStudio10TargetGenerator::WriteSDKReferences()
       this->Target->GetProperty("VS_DESKTOP_EXTENSIONS_VERSION");
     const char* mobileExtensionsVersion =
       this->Target->GetProperty("VS_MOBILE_EXTENSIONS_VERSION");
-    if(desktopExtensionsVersion || mobileExtensionsVersion)
+    const char* iotExtensionsVersion =
+      this->Target->GetProperty("VS_IOT_EXTENSIONS_VERSION");
+
+    if(desktopExtensionsVersion || mobileExtensionsVersion ||
+       iotExtensionsVersion)
       {
       this->WriteString("<ItemGroup>\n", 1);
       if(desktopExtensionsVersion)
@@ -2792,6 +2796,11 @@ void cmVisualStudio10TargetGenerator::WriteSDKReferences()
         {
         this->WriteSingleSDKReference("WindowsMobile",
                                       mobileExtensionsVersion);
+        }
+      if(iotExtensionsVersion)
+        {
+        this->WriteSingleSDKReference("WindowsIoT",
+                                      iotExtensionsVersion);
         }
       this->WriteString("</ItemGroup>\n", 1);
       }
@@ -3023,6 +3032,12 @@ void cmVisualStudio10TargetGenerator::WriteApplicationTypeSettings()
       (*this->BuildFileStream) << cmVS10EscapeXML(targetPlatformVersion) <<
         "</WindowsTargetPlatformMinVersion>\n";
       }
+    }
+
+  // Added IoT Startup Task support
+  if(this->Target->GetPropertyAsBool("VS_IOT_STARTUP_TASK"))
+    {
+    this->WriteString("<ContainsStartupTask>true</ContainsStartupTask>\n", 2);
     }
 }
 
