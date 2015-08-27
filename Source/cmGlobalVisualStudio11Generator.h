@@ -20,7 +20,7 @@ class cmGlobalVisualStudio11Generator:
   public cmGlobalVisualStudio10Generator
 {
 public:
-  cmGlobalVisualStudio11Generator(const std::string& name,
+  cmGlobalVisualStudio11Generator(cmake* cm, const std::string& name,
     const std::string& platformName);
   static cmGlobalGeneratorFactory* NewFactory();
 
@@ -28,20 +28,16 @@ public:
 
   virtual void WriteSLNHeader(std::ostream& fout);
 
-  ///! create the correct local generator
-  virtual cmLocalGenerator *CreateLocalGenerator();
-
-  /** TODO: VS 11 user macro support. */
-  virtual std::string GetUserMacrosDirectory() { return ""; }
 protected:
   virtual bool InitializeWindowsPhone(cmMakefile* mf);
   virtual bool InitializeWindowsStore(cmMakefile* mf);
   virtual bool SelectWindowsPhoneToolset(std::string& toolset) const;
   virtual bool SelectWindowsStoreToolset(std::string& toolset) const;
+  virtual bool IsWindowsDesktopToolsetInstalled() const;
 
   // These aren't virtual because we need to check if the selected version
-  // of the toolset is installed
-  bool IsWindowsDesktopToolsetInstalled() const;
+  // of the toolset is installed. The desktop version is virtual since we
+  // want the desktop to match the generator that we are using
   bool IsWindowsPhoneToolsetInstalled() const;
   bool IsWindowsStoreToolsetInstalled() const;
 
