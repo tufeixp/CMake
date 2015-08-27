@@ -118,8 +118,8 @@ bool cmGlobalVisualStudio14Generator::InitializeWindowsStore(cmMakefile* mf)
     std::ostringstream  e;
     if(this->DefaultPlatformToolset.empty())
       {
-      e << this->GetName() << " supports Windows Store '8.0', '8.1' and '10.0',"
-        " but not '" << this->SystemVersion <<
+      e << this->GetName() << " supports Windows Store '8.0', '8.1' and "
+        "'10.0', but not '" << this->SystemVersion <<
         "'.  Check CMAKE_SYSTEM_VERSION.";
       }
     else
@@ -130,6 +130,13 @@ bool cmGlobalVisualStudio14Generator::InitializeWindowsStore(cmMakefile* mf)
       }
     mf->IssueMessage(cmake::FATAL_ERROR, e.str());
     return false;
+    }
+  if (this->SystemVersion == "10.0")
+    {
+    // Find the lastest SDK and set VS_DEFAULT_TARGET_PLATFORM_VERSION
+    std::string sdkVersion = GetWindows10SDKVersion();
+    mf->AddDefinition("VS_DEFAULT_TARGET_PLATFORM_VERSION",
+      sdkVersion.c_str());
     }
   return true;
 }
@@ -194,4 +201,35 @@ cmGlobalVisualStudio14Generator::IsWindowsStoreToolsetInstalled() const
   std::vector<std::string> subkeys;
   return cmSystemTools::GetRegistrySubKeys(universal10Key,
     subkeys, cmSystemTools::KeyWOW64_32);
+}
+
+//----------------------------------------------------------------------------
+std::string cmGlobalVisualStudio14Generator::GetWindows10SDKVersion()
+{
+  // This logic is taken from the vcvarsqueryregistry.bat file from VS2015
+  std::string win10Root;
+  if (!cmSystemTools::ReadRegistryValue(
+    "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows Kits\\Installed Roots;"
+    "KitsRoot10", win10Root, cmSystemTools::KeyWOW64_32))
+  {
+    // If we can't find the root in HKLM try HKCU
+    if (!cmSystemTools::ReadRegistryValue(
+      "HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows Kits\\Installed Roots;"
+      "KitsRoot10", win10Root, cmSystemTools::KeyWOW64_32))
+    {
+      return NULL;
+    }
+  }
+
+  std::vector<std::string> sdks;
+  std::string path = win10Root + "Include/*";
+  cmSystemTools::GlobDirs(path, sdks);
+  if (!sdks.empty())
+  {
+    // Sort the result to make sure to use the latest one.
+    std::sort(sdks.begin(), sdks.end());
+    std::string sdkVersion = cmSystemTools::GetFilenameName(sdks.back());
+    return sdkVersion;
+  }
+  return NULL;
 }

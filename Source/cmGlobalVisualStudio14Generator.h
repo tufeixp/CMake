@@ -38,6 +38,8 @@ protected:
   // of the toolset is installed. The desktop version is virtual since we
   // want the desktop to match the generator that we are using
   bool IsWindowsStoreToolsetInstalled() const;
+  std::string GetWindows10SDKVersion();
+
   virtual const char* GetIDEVersion() { return "14.0"; }
 private:
   class Factory;
