@@ -196,11 +196,11 @@ cmGlobalVisualStudio14Generator::IsWindowsStoreToolsetInstalled() const
 {
   const char universal10Key[] =
     "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\"
-    "VisualStudio\\14.0\\Setup\\Build Tools for Windows 10";
+    "VisualStudio\\14.0\\Setup\\Build Tools for Windows 10;SrcPath";
 
-  std::vector<std::string> subkeys;
-  return cmSystemTools::GetRegistrySubKeys(universal10Key,
-    subkeys, cmSystemTools::KeyWOW64_32);
+  std::string win10SDK;
+  return cmSystemTools::ReadRegistryValue(universal10Key,
+    win10SDK, cmSystemTools::KeyWOW64_32);
 }
 
 //----------------------------------------------------------------------------
