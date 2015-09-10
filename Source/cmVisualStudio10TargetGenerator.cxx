@@ -2183,6 +2183,37 @@ cmVisualStudio10TargetGenerator::WriteLibOptions(std::string const& config)
     }
 }
 
+void cmVisualStudio10TargetGenerator::WriteManifestOptions(
+  std::string const& config)
+{
+  if(this->Target->GetType() == cmTarget::EXECUTABLE ||
+     this->Target->GetType() == cmTarget::SHARED_LIBRARY ||
+     this->Target->GetType() == cmTarget::MODULE_LIBRARY)
+    {
+    bool wroteTag = false;
+    std::vector<cmSourceFile const*> manifests;
+    this->GeneratorTarget->GetManifests(manifests, "");
+    for(std::vector<cmSourceFile const*>::const_iterator si =
+        manifests.begin(); si != manifests.end(); ++si)
+      {
+      std::string manifest = this->ConvertPath((*si)->GetFullPath(), false);
+      this->ConvertToWindowsSlash(manifest);
+      if(!wroteTag)
+        {
+        wroteTag = true;
+        this->WriteString("<Manifest>\n", 2);
+        this->WriteString("<AdditionalManifestFiles>", 3);
+        }
+      (*this->BuildFileStream) << manifest << ";";
+      }
+    if(wroteTag)
+      {
+      (*this->BuildFileStream) << "</AdditionalManifestFiles>\n";
+      this->WriteString("</Manifest>\n", 2);
+      }
+    }
+}
+
 
 //----------------------------------------------------------------------------
 void cmVisualStudio10TargetGenerator::WriteAntBuildOptions(
@@ -2507,7 +2538,7 @@ cmVisualStudio10TargetGenerator::WriteLinkOptions(std::string const& config)
     {
     this->WriteString("<ProjectReference>\n", 2);
     this->WriteString(
-      "  <LinkLibraryDependencies>false</LinkLibraryDependencies>\n", 2);
+      "<LinkLibraryDependencies>false</LinkLibraryDependencies>\n", 3);
     this->WriteString("</ProjectReference>\n", 2);
     }
 }
@@ -2617,6 +2648,8 @@ void cmVisualStudio10TargetGenerator::WriteItemDefinitionGroups()
     this->WriteLinkOptions(*i);
     //    output lib flags       <Lib></Lib>
     this->WriteLibOptions(*i);
+    //    output manifest flags  <Manifest></Manifest>
+    this->WriteManifestOptions(*i);
     if(this->NsightTegra &&
        this->Target->GetType() == cmTarget::EXECUTABLE &&
        this->Target->GetPropertyAsBool("ANDROID_GUI"))
@@ -3002,18 +3035,6 @@ void cmVisualStudio10TargetGenerator::WriteApplicationTypeSettings()
     this->WriteString("<WindowsTargetPlatformVersion>", 2);
     (*this->BuildFileStream) << cmVS10EscapeXML(targetPlatformVersion) <<
       "</WindowsTargetPlatformVersion>\n";
-    }
-  else if (isWindowsStore && v == "10.0")
-    {
-    // Default to the latest version of the Windows SDK that is installed
-    targetPlatformVersion =
-      this->Makefile->GetDefinition("VS_DEFAULT_TARGET_PLATFORM_VERSION");
-    if (targetPlatformVersion)
-      {
-      this->WriteString("<WindowsTargetPlatformVersion>", 2);
-      (*this->BuildFileStream) << cmVS10EscapeXML(targetPlatformVersion) <<
-        "</WindowsTargetPlatformVersion>\n";
-      }
     }
   const char* targetPlatformMinVersion =
       this->Target->GetProperty("VS_TARGET_PLATFORM_MIN_VERSION");
