@@ -3457,7 +3457,8 @@ void cmVisualStudio10TargetGenerator::WriteMissingFilesWS10_0()
     "\t\t\t\tDescription=\"" << targetNameXML << "\"\n"
     "\t\t\t\tBackgroundColor=\"#336699\"\n"
     "\t\t\t\tSquare150x150Logo=\"" << artifactDirXML << "\\Logo.png\"\n"
-    "\t\t\t\tSquare44x44Logo=\"" << artifactDirXML << "\\SmallLogo.png\">\n"
+    "\t\t\t\tSquare44x44Logo=\"" << artifactDirXML <<
+    "\\SmallLogo44x44.png\">\n"
     "\t\t\t\t<uap:SplashScreen"
     " Image=\"" << artifactDirXML << "\\SplashScreen.png\" />\n"
     "\t\t\t</uap:VisualElements>\n"
@@ -3490,6 +3491,14 @@ cmVisualStudio10TargetGenerator
   this->WriteString("<Image Include=\"", 2);
   (*this->BuildFileStream) << cmVS10EscapeXML(smallLogo) << "\" />\n";
   this->AddedFiles.push_back(smallLogo);
+
+  std::string smallLogo44 = this->DefaultArtifactDir + "/SmallLogo44x44.png";
+  cmSystemTools::CopyAFile(templateFolder + "/SmallLogo44x44.png",
+                           smallLogo44, false);
+  this->ConvertToWindowsSlash(smallLogo44);
+  this->WriteString("<Image Include=\"", 2);
+  (*this->BuildFileStream) << cmVS10EscapeXML(smallLogo44) << "\" />\n";
+  this->AddedFiles.push_back(smallLogo44);
 
   std::string logo = this->DefaultArtifactDir + "/Logo.png";
   cmSystemTools::CopyAFile(templateFolder + "/Logo.png",
