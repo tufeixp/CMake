@@ -242,6 +242,8 @@ Properties on Targets
    /prop_tgt/VS_GLOBAL_PROJECT_TYPES
    /prop_tgt/VS_GLOBAL_ROOTNAMESPACE
    /prop_tgt/VS_GLOBAL_variable
+   /prop_tgt/VS_IOT_EXTENSIONS_VERSION
+   /prop_tgt/VS_IOT_STARTUP_TASK
    /prop_tgt/VS_KEYWORD
    /prop_tgt/VS_MOBILE_EXTENSIONS_VERSION
    /prop_tgt/VS_SCC_AUXPATH

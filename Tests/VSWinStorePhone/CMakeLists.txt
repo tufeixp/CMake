@@ -92,6 +92,7 @@ elseif (NOT "${PLATFORM}" STREQUAL "DESKTOP")
     set(ASSET_FILES ${ASSET_FILES}
     Direct3DApp1/Assets/Logo.png
     Direct3DApp1/Assets/SmallLogo.png
+    Direct3DApp1/Assets/SmallLogo44x44.png
     Direct3DApp1/Assets/SplashScreen.png
     Direct3DApp1/Assets/StoreLogo.png
     )
@@ -133,6 +134,7 @@ set_property(TARGET ${EXE_NAME} PROPERTY VS_WINRT_COMPONENT TRUE)
 if("${CMAKE_SYSTEM_VERSION}" STREQUAL "10.0")
   set_property(TARGET ${EXE_NAME} PROPERTY VS_DESKTOP_EXTENSIONS_VERSION "10.0.10240.0")
   set_property(TARGET ${EXE_NAME} PROPERTY VS_MOBILE_EXTENSIONS_VERSION "10.0.10240.0")
+  set_property(TARGET ${EXE_NAME} PROPERTY VS_IOT_EXTENSIONS_VERSION "10.0.10240.0")
 endif()
 
 
