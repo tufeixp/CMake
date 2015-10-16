@@ -2292,6 +2292,37 @@ cmVisualStudio10TargetGenerator::WriteLibOptions(std::string const& config)
     }
 }
 
+void cmVisualStudio10TargetGenerator::WriteManifestOptions(
+  std::string const& config)
+{
+  if(this->Target->GetType() == cmTarget::EXECUTABLE ||
+     this->Target->GetType() == cmTarget::SHARED_LIBRARY ||
+     this->Target->GetType() == cmTarget::MODULE_LIBRARY)
+    {
+    bool wroteTag = false;
+    std::vector<cmSourceFile const*> manifests;
+    this->GeneratorTarget->GetManifests(manifests, "");
+    for(std::vector<cmSourceFile const*>::const_iterator si =
+        manifests.begin(); si != manifests.end(); ++si)
+      {
+      std::string manifest = this->ConvertPath((*si)->GetFullPath(), false);
+      this->ConvertToWindowsSlash(manifest);
+      if(!wroteTag)
+        {
+        wroteTag = true;
+        this->WriteString("<Manifest>\n", 2);
+        this->WriteString("<AdditionalManifestFiles>", 3);
+        }
+      (*this->BuildFileStream) << manifest << ";";
+      }
+    if(wroteTag)
+      {
+      (*this->BuildFileStream) << "</AdditionalManifestFiles>\n";
+      this->WriteString("</Manifest>\n", 2);
+      }
+    }
+}
+
 
 //----------------------------------------------------------------------------
 void cmVisualStudio10TargetGenerator::WriteAntBuildOptions(
@@ -2620,7 +2651,7 @@ cmVisualStudio10TargetGenerator::WriteLinkOptions(std::string const& config)
     {
     this->WriteString("<ProjectReference>\n", 2);
     this->WriteString(
-      "  <LinkLibraryDependencies>false</LinkLibraryDependencies>\n", 2);
+      "<LinkLibraryDependencies>false</LinkLibraryDependencies>\n", 3);
     this->WriteString("</ProjectReference>\n", 2);
     }
 }
@@ -2740,6 +2771,8 @@ void cmVisualStudio10TargetGenerator::WriteSingleItemDefinitionGroup(
   this->WriteLinkOptions(configuration);
   //    output lib flags       <Lib></Lib>
   this->WriteLibOptions(configuration);
+  //    output manifest flags  <Manifest></Manifest>
+    this->WriteManifestOptions(configuration);
   if(this->NsightTegra &&
       this->Target->GetType() == cmTarget::EXECUTABLE &&
       this->Target->GetPropertyAsBool("ANDROID_GUI"))
@@ -2902,7 +2935,11 @@ void cmVisualStudio10TargetGenerator::WriteSDKReferences()
       this->Target->GetProperty("VS_DESKTOP_EXTENSIONS_VERSION");
     const char* mobileExtensionsVersion =
       this->Target->GetProperty("VS_MOBILE_EXTENSIONS_VERSION");
-    if(desktopExtensionsVersion || mobileExtensionsVersion)
+    const char* iotExtensionsVersion =
+      this->Target->GetProperty("VS_IOT_EXTENSIONS_VERSION");
+
+    if(desktopExtensionsVersion || mobileExtensionsVersion ||
+       iotExtensionsVersion)
       {
       this->WriteString("<ItemGroup>\n", 1);
       if(desktopExtensionsVersion)
@@ -2914,6 +2951,11 @@ void cmVisualStudio10TargetGenerator::WriteSDKReferences()
         {
         this->WriteSingleSDKReference("WindowsMobile",
                                       mobileExtensionsVersion);
+        }
+      if(iotExtensionsVersion)
+        {
+        this->WriteSingleSDKReference("WindowsIoT",
+                                      iotExtensionsVersion);
         }
       this->WriteString("</ItemGroup>\n", 1);
       }
@@ -3116,18 +3158,6 @@ void cmVisualStudio10TargetGenerator::WriteApplicationTypeSettings()
     (*this->BuildFileStream) << cmVS10EscapeXML(targetPlatformVersion) <<
       "</WindowsTargetPlatformVersion>\n";
     }
-  else if (isWindowsStore && v == "10.0")
-    {
-    // Default to the latest version of the Windows SDK that is installed
-    targetPlatformVersion =
-      this->Makefile->GetDefinition("VS_DEFAULT_TARGET_PLATFORM_VERSION");
-    if (targetPlatformVersion)
-      {
-      this->WriteString("<WindowsTargetPlatformVersion>", 2);
-      (*this->BuildFileStream) << cmVS10EscapeXML(targetPlatformVersion) <<
-        "</WindowsTargetPlatformVersion>\n";
-      }
-    }
   const char* targetPlatformMinVersion =
       this->Target->GetProperty("VS_TARGET_PLATFORM_MIN_VERSION");
   if(targetPlatformMinVersion)
@@ -3145,6 +3175,12 @@ void cmVisualStudio10TargetGenerator::WriteApplicationTypeSettings()
       (*this->BuildFileStream) << cmVS10EscapeXML(targetPlatformVersion) <<
         "</WindowsTargetPlatformMinVersion>\n";
       }
+    }
+
+  // Added IoT Startup Task support
+  if(this->Target->GetPropertyAsBool("VS_IOT_STARTUP_TASK"))
+    {
+    this->WriteString("<ContainsStartupTask>true</ContainsStartupTask>\n", 2);
     }
 }
 
@@ -3543,7 +3579,8 @@ void cmVisualStudio10TargetGenerator::WriteMissingFilesWS10_0()
     "\t\t\t\tDescription=\"" << targetNameXML << "\"\n"
     "\t\t\t\tBackgroundColor=\"#336699\"\n"
     "\t\t\t\tSquare150x150Logo=\"" << artifactDirXML << "\\Logo.png\"\n"
-    "\t\t\t\tSquare44x44Logo=\"" << artifactDirXML << "\\SmallLogo.png\">\n"
+    "\t\t\t\tSquare44x44Logo=\"" << artifactDirXML <<
+    "\\SmallLogo44x44.png\">\n"
     "\t\t\t\t<uap:SplashScreen"
     " Image=\"" << artifactDirXML << "\\SplashScreen.png\" />\n"
     "\t\t\t</uap:VisualElements>\n"
@@ -3576,6 +3613,14 @@ cmVisualStudio10TargetGenerator
   this->WriteString("<Image Include=\"", 2);
   (*this->BuildFileStream) << cmVS10EscapeXML(smallLogo) << "\" />\n";
   this->AddedFiles.push_back(smallLogo);
+
+  std::string smallLogo44 = this->DefaultArtifactDir + "/SmallLogo44x44.png";
+  cmSystemTools::CopyAFile(templateFolder + "/SmallLogo44x44.png",
+                           smallLogo44, false);
+  this->ConvertToWindowsSlash(smallLogo44);
+  this->WriteString("<Image Include=\"", 2);
+  (*this->BuildFileStream) << cmVS10EscapeXML(smallLogo44) << "\" />\n";
+  this->AddedFiles.push_back(smallLogo44);
 
   std::string logo = this->DefaultArtifactDir + "/Logo.png";
   cmSystemTools::CopyAFile(templateFolder + "/Logo.png",
