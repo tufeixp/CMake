@@ -1,6 +1,6 @@
 #include "cmVisualStudioGeneratorOptions.h"
+#include "cmOutputConverter.h"
 #include "cmSystemTools.h"
-#include <cmsys/System.h>
 #include "cmVisualStudio10TargetGenerator.h"
 
 static
@@ -246,10 +246,10 @@ void cmVisualStudioGeneratorOptions::StoreUnknownFlag(const char* flag)
   // This option is not known.  Store it in the output flags.
   this->FlagString += " ";
   this->FlagString +=
-    cmSystemTools::EscapeWindowsShellArgument(
+    cmOutputConverter::EscapeWindowsShellArgument(
       flag,
-      cmsysSystem_Shell_Flag_AllowMakeVariables |
-      cmsysSystem_Shell_Flag_VSIDE);
+      cmOutputConverter::Shell_Flag_AllowMakeVariables |
+      cmOutputConverter::Shell_Flag_VSIDE);
 }
 
 //----------------------------------------------------------------------------
@@ -277,7 +277,7 @@ cmVisualStudioGeneratorOptions
     {
     // if there are configuration specific flags, then
     // use the configuration specific tag for PreprocessorDefinitions
-    if(this->Configuration.size())
+    if(!this->Configuration.empty())
       {
       fout << prefix;
       this->TargetGenerator->WritePlatformConfigTag(
@@ -350,7 +350,7 @@ cmVisualStudioGeneratorOptions
         m != this->FlagMap.end(); ++m)
       {
       fout << indent;
-      if(this->Configuration.size())
+      if(!this->Configuration.empty())
         {
         this->TargetGenerator->WritePlatformConfigTag(
           m->first.c_str(),
@@ -403,7 +403,7 @@ cmVisualStudioGeneratorOptions
     if(this->Version >= cmGlobalVisualStudioGenerator::VS10)
       {
       fout << prefix;
-      if(this->Configuration.size())
+      if(!this->Configuration.empty())
         {
         this->TargetGenerator->WritePlatformConfigTag(
           "AdditionalOptions",

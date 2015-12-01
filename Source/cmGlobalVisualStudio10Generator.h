@@ -45,9 +45,10 @@ public:
     std::vector<std::string> const& makeOptions = std::vector<std::string>()
     );
 
+  virtual bool Compute();
+
   ///! create the correct local generator
-  virtual cmLocalGenerator *CreateLocalGenerator(cmLocalGenerator* parent,
-                                                 cmState::Snapshot snapshot);
+  virtual cmLocalGenerator *CreateLocalGenerator(cmMakefile* mf);
 
   /**
    * Try to determine system information such as shared library
@@ -81,6 +82,10 @@ public:
   /** Return the CMAKE_SYSTEM_VERSION.  */
   std::string const& GetSystemVersion() const { return this->SystemVersion; }
 
+  /** Return the Windows version targeted on VS 2015 and above.  */
+  std::string const& GetWindowsTargetPlatformVersion() const
+    { return this->WindowsTargetPlatformVersion; }
+
   /** Return true if building for WindowsCE */
   bool TargetsWindowsCE() const
     { return this->SystemIsWindowsCE; }
@@ -112,6 +117,7 @@ public:
 protected:
   virtual void Generate();
   virtual bool InitializeSystem(cmMakefile* mf);
+  virtual bool InitializeWindows(cmMakefile* mf);
   virtual bool InitializeWindowsCE(cmMakefile* mf);
   virtual bool InitializeWindowsPhone(cmMakefile* mf);
   virtual bool InitializeWindowsStore(cmMakefile* mf);
@@ -129,6 +135,7 @@ protected:
 
   std::string GeneratorToolset;
   std::string DefaultPlatformToolset;
+  std::string WindowsTargetPlatformVersion;
   std::string SystemName;
   std::string SystemPlatforms;
   std::string SystemVersion;
