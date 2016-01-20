@@ -1373,6 +1373,10 @@ void cmVisualStudio10TargetGenerator::WriteExtraSource(cmSourceFile const* sf)
     {
     tool = "Image";
     }
+  else if(ext == "resw")
+    {
+    tool = "PRIResource";
+    }
   else if(ext == "xml")
     {
     tool = "XML";
@@ -1399,6 +1403,12 @@ void cmVisualStudio10TargetGenerator::WriteExtraSource(cmSourceFile const* sf)
       {
       tool = "ClCompile";
       }
+    }
+
+  const char* toolOverride = sf->GetProperty("VS_TOOL_OVERRIDE");
+  if(toolOverride && *toolOverride)
+    {
+    tool = toolOverride;
     }
 
   std::string deployContent;
@@ -2643,11 +2653,27 @@ cmVisualStudio10TargetGenerator::ComputeLinkOptions(std::string const& config)
 
     if(linkOptions.IsDebug() || flags.find("/debug") != flags.npos)
       {
-      linkOptions.AddFlag("GenerateDebugInformation", "true");
+      if (this->LocalGenerator->GetVersion() >=
+          cmGlobalVisualStudioGenerator::VS14)
+        {
+        linkOptions.AddFlag("GenerateDebugInformation", "Debug");
+        }
+      else
+        {
+        linkOptions.AddFlag("GenerateDebugInformation", "true");
+        }
       }
     else
       {
-      linkOptions.AddFlag("GenerateDebugInformation", "false");
+      if (this->LocalGenerator->GetVersion() >=
+          cmGlobalVisualStudioGenerator::VS14)
+        {
+        linkOptions.AddFlag("GenerateDebugInformation", "No");
+        }
+      else
+        {
+        linkOptions.AddFlag("GenerateDebugInformation", "false");
+        }
       }
     std::string pdb = this->Target->GetPDBDirectory(config.c_str());
     pdb += "/";
