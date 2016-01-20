@@ -118,6 +118,7 @@ private:
   void AddLibraries(cmComputeLinkInformation& cli,
                     std::vector<std::string>& libVec);
   void WriteLibOptions(std::string const& config);
+  void WriteManifestOptions(std::string const& config);
   void WriteEvents(std::string const& configName);
   void WriteEvent(const char* name,
                   std::vector<cmCustomCommand> const& commands,
@@ -135,6 +136,8 @@ private:
   cmIDEFlagTable const* GetLibFlagTable() const;
   cmIDEFlagTable const* GetLinkFlagTable() const;
   cmIDEFlagTable const* GetMasmFlagTable() const;
+
+  bool ForceOld(const std::string& source) const;
 
 private:
   typedef cmVisualStudioGeneratorOptions Options;

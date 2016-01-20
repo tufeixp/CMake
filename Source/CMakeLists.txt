@@ -88,7 +88,7 @@ option(CMAKE_REGENERATE_YACCLEX
   "Regenerate YACC and LEXX files" OFF)
 mark_as_advanced(CMAKE_REGENERATE_YACCLEX)
 if(CMAKE_REGENERATE_YACCLEX)
-  set(parsersLexers cmDependsFortran cmCommandArgument cmExpr)
+  set(parsersLexers cmFortran cmCommandArgument cmExpr)
   find_program(YACC_EXECUTABLE
     NAMES yacc bison
     PATHS /usr/bin
@@ -165,6 +165,8 @@ set(SRCS
   cmCommandArgumentLexer.cxx
   cmCommandArgumentParser.cxx
   cmCommandArgumentParserHelper.cxx
+  cmCommonTargetGenerator.cxx
+  cmCommonTargetGenerator.h
   cmComputeComponentGraph.cxx
   cmComputeComponentGraph.h
   cmComputeLinkDepends.cxx
@@ -191,9 +193,6 @@ set(SRCS
   cmDependsC.h
   cmDependsFortran.cxx
   cmDependsFortran.h
-  cmDependsFortranLexer.cxx
-  cmDependsFortranParser.cxx
-  cmDependsFortranParser.h
   cmDependsJava.cxx
   cmDependsJava.h
   cmDependsJavaLexer.cxx
@@ -241,6 +240,11 @@ set(SRCS
   cmFileLockResult.h
   cmFileTimeComparison.cxx
   cmFileTimeComparison.h
+  cmFortranLexer.cxx
+  cmFortranLexer.h
+  cmFortranParser.cxx
+  cmFortranParser.h
+  cmFortranParserImpl.cxx
   cmGeneratedFileStream.cxx
   cmGeneratorExpressionContext.cxx
   cmGeneratorExpressionContext.h
@@ -260,6 +264,8 @@ set(SRCS
   cmGeneratorExpression.h
   cmGeneratorTarget.cxx
   cmGeneratorTarget.h
+  cmGlobalCommonGenerator.cxx
+  cmGlobalCommonGenerator.h
   cmGlobalGenerator.cxx
   cmGlobalGenerator.h
   cmGlobalGeneratorFactory.h
@@ -281,9 +287,13 @@ set(SRCS
   cmInstallTargetGenerator.cxx
   cmInstallDirectoryGenerator.h
   cmInstallDirectoryGenerator.cxx
+  cmLinkedTree.h
+  cmLinkItem.h
   cmListFileCache.cxx
   cmListFileCache.h
   cmListFileLexer.c
+  cmLocalCommonGenerator.cxx
+  cmLocalCommonGenerator.h
   cmLocalGenerator.cxx
   cmLocalGenerator.h
   cmLocalUnixMakefileGenerator3.cxx
@@ -299,6 +309,8 @@ set(SRCS
   cmMakefileUtilityTargetGenerator.cxx
   cmOSXBundleGenerator.cxx
   cmOSXBundleGenerator.h
+  cmOutputConverter.cxx
+  cmOutputConverter.h
   cmNewLineStyle.h
   cmNewLineStyle.cxx
   cmOrderDirectories.cxx
@@ -315,6 +327,8 @@ set(SRCS
   cmPropertyDefinitionMap.h
   cmPropertyMap.cxx
   cmPropertyMap.h
+  cmQtAutoGeneratorInitializer.cxx
+  cmQtAutoGeneratorInitializer.h
   cmQtAutoGenerators.cxx
   cmQtAutoGenerators.h
   cmRST.cxx
@@ -427,6 +441,7 @@ if (WIN32)
   set(SRCS ${SRCS}
     cmCallVisualStudioMacro.cxx
     cmCallVisualStudioMacro.h
+    bindexplib.cxx
     )
 
   if(NOT UNIX)
@@ -489,6 +504,10 @@ if (WIN32)
       cmGhsMultiGpj.cxx
       cmGhsMultiGpj.h
       )
+
+    # Add a manifest file to executables on Windows to allow for
+    # GetVersion to work properly on Windows 8 and above.
+    set(MANIFEST_FILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake.version.manifest)
   endif()
 endif ()
 
@@ -518,7 +537,7 @@ set(SRCS ${SRCS}
 
 if(WIN32 AND NOT CYGWIN)
   set_source_files_properties(cmcldeps.cxx PROPERTIES COMPILE_DEFINITIONS _WIN32_WINNT=0x0501)
-  add_executable(cmcldeps cmcldeps.cxx)
+  add_executable(cmcldeps cmcldeps.cxx ${MANIFEST_FILE})
   target_link_libraries(cmcldeps CMakeLib)
   install(TARGETS cmcldeps DESTINATION bin)
 endif()
@@ -543,8 +562,9 @@ if(APPLE)
   target_link_libraries(CMakeLib "-framework CoreFoundation")
 endif()
 
-if(CMAKE_BUILD_ON_VISUAL_STUDIO OR MINGW)
-  # We need the rpcrt4 library for at least the VS7-VC10 generators.
+if(WIN32 AND NOT UNIX)
+  # We need the rpcrt4 library on Windows.
+  # We need the crypt32 library on Windows for crypto/cert APIs.
   target_link_libraries(CMakeLib rpcrt4 crypt32)
 endif()
 
@@ -706,15 +726,15 @@ if(APPLE)
 endif()
 
 # Build CMake executable
-add_executable(cmake cmakemain.cxx cmcmd.cxx cmcmd.h)
+add_executable(cmake cmakemain.cxx cmcmd.cxx cmcmd.h ${MANIFEST_FILE})
 target_link_libraries(cmake CMakeLib)
 
 # Build CTest executable
-add_executable(ctest ctest.cxx)
+add_executable(ctest ctest.cxx ${MANIFEST_FILE})
 target_link_libraries(ctest CTestLib)
 
 # Build CPack executable
-add_executable(cpack CPack/cpack.cxx)
+add_executable(cpack CPack/cpack.cxx ${MANIFEST_FILE})
 target_link_libraries(cpack CPackLib)
 
 # Curses GUI
@@ -731,9 +751,17 @@ endif()
 include (${CMake_BINARY_DIR}/Source/LocalUserOptions.cmake OPTIONAL)
 include (${CMake_SOURCE_DIR}/Source/LocalUserOptions.cmake OPTIONAL)
 
-install(TARGETS cmake ctest cpack DESTINATION bin)
+# Install tools
+
+set(_tools cmake ctest cpack)
+
 if(APPLE)
-  install(TARGETS cmakexbuild DESTINATION bin)
+  list(APPEND _tools cmakexbuild)
 endif()
+
+foreach(_tool ${_tools})
+  CMake_OPTIONAL_COMPONENT(${_tool})
+  install(TARGETS ${_tool} DESTINATION bin ${COMPONENT})
+endforeach()
 
 install(FILES cmCPluginAPI.h DESTINATION ${CMAKE_DATA_DIR}/include)

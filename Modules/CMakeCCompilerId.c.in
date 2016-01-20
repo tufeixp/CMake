@@ -24,6 +24,17 @@ char const* qnxnto = "INFO" ":" "qnxnto[]";
 @CMAKE_C_COMPILER_ID_PLATFORM_CONTENT@
 @CMAKE_C_COMPILER_ID_ERROR_FOR_TEST@
 
+const char* info_language_dialect_default = "INFO" ":" "dialect_default["
+#if !defined(__STDC_VERSION__)
+  "90"
+#elif __STDC_VERSION__ >= 201000L
+  "11"
+#elif __STDC_VERSION__ >= 199901L
+  "99"
+#else
+#endif
+"]";
+
 /*--------------------------------------------------------------------------*/
 
 #ifdef ID_VOID_MAIN
@@ -44,6 +55,7 @@ int main(int argc, char* argv[])
 #ifdef SIMULATE_VERSION_MAJOR
   require += info_simulate_version[argc];
 #endif
+  require += info_language_dialect_default[argc];
   (void)argv;
   return require;
 }

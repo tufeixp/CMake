@@ -1133,6 +1133,10 @@ void cmFindPackageCommand::ComputePrefixes()
       {
       this->FillPrefixesCMakeEnvironment();
       }
+    }
+  this->FillPrefixesUserHints();
+  if(!this->NoDefaultPath)
+    {
     if(!this->NoSystemEnvironmentPath)
       {
       this->FillPrefixesSystemEnvironment();
@@ -1150,7 +1154,6 @@ void cmFindPackageCommand::ComputePrefixes()
       this->FillPrefixesSystemRegistry();
       }
     }
-  this->FillPrefixesUserHints();
   this->FillPrefixesUserGuess();
 
   this->ComputeFinalPaths();
@@ -1378,7 +1381,7 @@ void cmFindPackageCommand::LoadPackageRegistryDir(std::string const& dir,
       cmFindPackageCommandHoldFile holdFile(fname.c_str());
 
       // Load the file.
-      cmsys::ifstream fin(fname.c_str(), std::ios::in | cmsys_ios_binary);
+      cmsys::ifstream fin(fname.c_str(), std::ios::in | std::ios::binary);
       std::string fentry;
       if(fin && cmSystemTools::GetLineFromStream(fin, fentry) &&
          this->CheckPackageRegistryEntry(fentry, outPaths))

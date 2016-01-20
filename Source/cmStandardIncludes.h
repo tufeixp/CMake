@@ -33,14 +33,6 @@
 // Provide fixed-size integer types.
 #include <cmIML/INT.h>
 
-// Include stream compatibility layer from KWSys.
-// This is needed to work with large file support
-// on some platforms whose stream operators do not
-// support the large integer types.
-#if defined(CMAKE_BUILD_WITH_CMAKE)
-# include <cmsys/IOStream.hxx>
-#endif
-
 #include <fstream>
 #include <iostream>
 #include <iomanip>
@@ -62,6 +54,8 @@
 
 #if defined( _MSC_VER )
 typedef unsigned short mode_t;
+#else
+# include <sys/types.h>
 #endif
 
 // use this class to shrink the size of symbols in .o files

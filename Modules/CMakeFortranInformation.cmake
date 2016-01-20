@@ -194,7 +194,7 @@ endif()
 # Create a static archive incrementally for large object file counts.
 # If CMAKE_Fortran_CREATE_STATIC_LIBRARY is set it will override these.
 if(NOT DEFINED CMAKE_Fortran_ARCHIVE_CREATE)
-  set(CMAKE_Fortran_ARCHIVE_CREATE "<CMAKE_AR> cq <TARGET> <LINK_FLAGS> <OBJECTS>")
+  set(CMAKE_Fortran_ARCHIVE_CREATE "<CMAKE_AR> qc <TARGET> <LINK_FLAGS> <OBJECTS>")
 endif()
 if(NOT DEFINED CMAKE_Fortran_ARCHIVE_APPEND)
   set(CMAKE_Fortran_ARCHIVE_APPEND "<CMAKE_AR> q  <TARGET> <LINK_FLAGS> <OBJECTS>")
@@ -207,7 +207,7 @@ endif()
 # (put -o after -c to workaround bug in at least one mpif77 wrapper)
 if(NOT CMAKE_Fortran_COMPILE_OBJECT)
   set(CMAKE_Fortran_COMPILE_OBJECT
-    "<CMAKE_Fortran_COMPILER> <DEFINES> <FLAGS> -c <SOURCE> -o <OBJECT>")
+    "<CMAKE_Fortran_COMPILER> <DEFINES> <INCLUDES> <FLAGS> -c <SOURCE> -o <OBJECT>")
 endif()
 
 # link a fortran program

@@ -111,11 +111,21 @@ cmGlobalVisualStudio14Generator::MatchesGeneratorName(
 }
 
 //----------------------------------------------------------------------------
+bool cmGlobalVisualStudio14Generator::InitializeWindows(cmMakefile* mf)
+{
+  if (cmHasLiteralPrefix(this->SystemVersion, "10.0"))
+    {
+    return this->SelectWindows10SDK(mf);
+    }
+  return true;
+}
+
+//----------------------------------------------------------------------------
 bool cmGlobalVisualStudio14Generator::InitializeWindowsStore(cmMakefile* mf)
 {
+  std::ostringstream  e;
   if(!this->SelectWindowsStoreToolset(this->DefaultPlatformToolset))
     {
-    std::ostringstream  e;
     if(this->DefaultPlatformToolset.empty())
       {
       e << this->GetName() << " supports Windows Store '8.0', '8.1' and "
@@ -131,13 +141,28 @@ bool cmGlobalVisualStudio14Generator::InitializeWindowsStore(cmMakefile* mf)
     mf->IssueMessage(cmake::FATAL_ERROR, e.str());
     return false;
     }
-  if (this->SystemVersion == "10.0")
+  if (cmHasLiteralPrefix(this->SystemVersion, "10.0"))
     {
-    // Find the lastest SDK and set VS_DEFAULT_TARGET_PLATFORM_VERSION
-    std::string sdkVersion = GetWindows10SDKVersion();
-    mf->AddDefinition("VS_DEFAULT_TARGET_PLATFORM_VERSION",
-      sdkVersion.c_str());
+    return this->SelectWindows10SDK(mf);
     }
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool cmGlobalVisualStudio14Generator::SelectWindows10SDK(cmMakefile* mf)
+{
+  // Find the default version of the Windows 10 SDK.
+  this->WindowsTargetPlatformVersion = this->GetWindows10SDKVersion();
+  if (this->WindowsTargetPlatformVersion.empty())
+    {
+    std::ostringstream  e;
+    e << "Could not find an appropriate version of the Windows 10 SDK"
+      << " installed on this machine";
+    mf->IssueMessage(cmake::FATAL_ERROR, e.str());
+    return false;
+    }
+  mf->AddDefinition("CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION",
+                    this->WindowsTargetPlatformVersion.c_str());
   return true;
 }
 
@@ -146,7 +171,7 @@ bool
 cmGlobalVisualStudio14Generator::SelectWindowsStoreToolset(
   std::string& toolset) const
 {
-  if(this->SystemVersion == "10.0")
+  if (cmHasLiteralPrefix(this->SystemVersion, "10.0"))
     {
     if (this->IsWindowsStoreToolsetInstalled() &&
         this->IsWindowsDesktopToolsetInstalled())
@@ -177,6 +202,7 @@ void cmGlobalVisualStudio14Generator::WriteSLNHeader(std::ostream& fout)
     fout << "# Visual Studio 14\n";
     }
 }
+
 //----------------------------------------------------------------------------
 bool
 cmGlobalVisualStudio14Generator::IsWindowsDesktopToolsetInstalled() const
@@ -196,40 +222,78 @@ cmGlobalVisualStudio14Generator::IsWindowsStoreToolsetInstalled() const
 {
   const char universal10Key[] =
     "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\"
-    "VisualStudio\\14.0\\Setup\\Build Tools for Windows 10";
+    "VisualStudio\\14.0\\Setup\\Build Tools for Windows 10;SrcPath";
 
-  std::vector<std::string> subkeys;
-  return cmSystemTools::GetRegistrySubKeys(universal10Key,
-    subkeys, cmSystemTools::KeyWOW64_32);
+  std::string win10SDK;
+  return cmSystemTools::ReadRegistryValue(universal10Key,
+    win10SDK, cmSystemTools::KeyWOW64_32);
 }
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+struct NoWindowsH
+{
+  bool operator()(std::string const& p)
+    {
+    return !cmSystemTools::FileExists(p + "/um/windows.h", true);
+    }
+};
+#endif
 
 //----------------------------------------------------------------------------
 std::string cmGlobalVisualStudio14Generator::GetWindows10SDKVersion()
 {
+#if defined(_WIN32) && !defined(__CYGWIN__)
   // This logic is taken from the vcvarsqueryregistry.bat file from VS2015
+  // Try HKLM and then HKCU.
   std::string win10Root;
   if (!cmSystemTools::ReadRegistryValue(
-    "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows Kits\\Installed Roots;"
-    "KitsRoot10", win10Root, cmSystemTools::KeyWOW64_32))
-  {
-    // If we can't find the root in HKLM try HKCU
-    if (!cmSystemTools::ReadRegistryValue(
-      "HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows Kits\\Installed Roots;"
-      "KitsRoot10", win10Root, cmSystemTools::KeyWOW64_32))
+        "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\"
+        "Windows Kits\\Installed Roots;KitsRoot10", win10Root,
+        cmSystemTools::KeyWOW64_32) &&
+      !cmSystemTools::ReadRegistryValue(
+        "HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\"
+        "Windows Kits\\Installed Roots;KitsRoot10", win10Root,
+        cmSystemTools::KeyWOW64_32))
     {
-      return NULL;
+    return std::string();
     }
-  }
 
   std::vector<std::string> sdks;
   std::string path = win10Root + "Include/*";
+  // Grab the paths of the different SDKs that are installed
   cmSystemTools::GlobDirs(path, sdks);
+
+  // Skip SDKs that do not contain <um/windows.h> because that indicates that
+  // only the UCRT MSIs were installed for them.
+  sdks.erase(std::remove_if(sdks.begin(), sdks.end(), NoWindowsH()),
+             sdks.end());
+
   if (!sdks.empty())
-  {
-    // Sort the result to make sure to use the latest one.
-    std::sort(sdks.begin(), sdks.end());
-    std::string sdkVersion = cmSystemTools::GetFilenameName(sdks.back());
-    return sdkVersion;
-  }
-  return NULL;
+    {
+    // Only use the filename, which will be the SDK version.
+    for (std::vector<std::string>::iterator i = sdks.begin();
+         i != sdks.end(); ++i)
+      {
+      *i = cmSystemTools::GetFilenameName(*i);
+      }
+
+    // Sort the results to make sure we select the most recent one.
+    std::sort(sdks.begin(), sdks.end(), cmSystemTools::VersionCompareGreater);
+
+    // Look for a SDK exactly matching the requested target version.
+    for (std::vector<std::string>::iterator i = sdks.begin();
+         i != sdks.end(); ++i)
+      {
+      if (cmSystemTools::VersionCompareEqual(*i, this->SystemVersion))
+        {
+        return *i;
+        }
+      }
+
+    // Use the latest Windows 10 SDK since the exact version is not available.
+    return sdks.at(0);
+    }
+#endif
+  // Return an empty string
+  return std::string();
 }
