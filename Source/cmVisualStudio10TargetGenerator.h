@@ -43,6 +43,8 @@ public:
     std::ostream* strm = 0
     );
 
+  bool IsClang() { return this->MSClang; }
+
 private:
   struct ToolSource
   {
@@ -154,7 +156,9 @@ private:
   std::string Platform;
   std::string GUID;
   std::string Name;
+  std::string Toolset;
   bool MSTools;
+  bool MSClang;
   bool NsightTegra;
   int  NsightTegraVersion[4];
   bool TargetCompileAsWinRT;

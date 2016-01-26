@@ -191,6 +191,21 @@ cmVisualStudio10TargetGenerator(cmTarget* target,
     this->NsightTegraVersion[i] = 0;
     }
   this->MSTools = !this->NsightTegra;
+
+
+  // Verify if we are overridding the toolset for this target
+  const char* toolsetOverriden =
+      this->Target->GetProperty("VS_PLATFORM_TOOLSET_OVERRIDE");
+  if(toolsetOverriden)
+    {
+    this->Toolset = toolsetOverriden;
+    }
+  else
+    {
+    this->Toolset = gg->GetPlatformToolset();
+    }
+  this->MSClang =
+      ((ptrdiff_t)cmSystemTools::LowerCase(this->Toolset).find("clang")) >= 0;
   this->TargetCompileAsWinRT = false;
   this->BuildFileStream = 0;
   this->IsMissingFiles = false;
@@ -762,10 +777,10 @@ void cmVisualStudio10TargetGenerator
     {
     this->WriteString("<CharacterSet>MultiByte</CharacterSet>\n", 2);
     }
-  if(const char* toolset = gg->GetPlatformToolset())
+  if(!this->Toolset.empty())
     {
     std::string pts = "<PlatformToolset>";
-    pts += toolset;
+    pts += this->Toolset;
     pts += "</PlatformToolset>\n";
     this->WriteString(pts.c_str(), 2);
     }
@@ -783,9 +798,8 @@ void cmVisualStudio10TargetGenerator
 {
   cmGlobalVisualStudio10Generator* gg =
     static_cast<cmGlobalVisualStudio10Generator*>(this->GlobalGenerator);
-  const char* toolset = gg->GetPlatformToolset();
   std::string ntv = "<NdkToolchainVersion>";
-  ntv += toolset? toolset : "Default";
+  ntv += !this->Toolset.empty()? this->Toolset : "Default";
   ntv += "</NdkToolchainVersion>\n";
   this->WriteString(ntv.c_str(), 2);
   if(const char* minApi = this->Target->GetProperty("ANDROID_API_MIN"))
@@ -1900,7 +1914,7 @@ bool cmVisualStudio10TargetGenerator::ComputeClOptions(
 
   cmsys::auto_ptr<Options> pOptions(
     new Options(this->LocalGenerator, Options::Compiler,
-                this->GetClFlagTable()));
+                this->GetClFlagTable(), nullptr, this));
   Options& clOptions = *pOptions;
 
   std::string flags;
@@ -1958,6 +1972,7 @@ bool cmVisualStudio10TargetGenerator::ComputeClOptions(
     {
     clOptions.SetVerboseMakefile(
       this->Makefile->IsOn("CMAKE_VERBOSE_MAKEFILE"));
+    clOptions.FixClangOptions();
     }
 
   // Add a definition for the configuration name.
@@ -2032,7 +2047,10 @@ void cmVisualStudio10TargetGenerator::WriteClOptions(
 
   if(this->MSTools)
     {
-    this->WriteString("<ObjectFileName>$(IntDir)</ObjectFileName>\n", 3);
+    if(!this->MSClang)
+      {
+      this->WriteString("<ObjectFileName>$(IntDir)</ObjectFileName>\n", 3);
+      }
 
     // If not in debug mode, write the DebugInformationFormat field
     // without value so PDBs don't get generated uselessly.

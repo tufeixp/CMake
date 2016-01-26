@@ -35,11 +35,9 @@
       <MinimalRebuild>false</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
-      <PrecompiledHeader>
-      </PrecompiledHeader>
+      @id_precompiled_header@
       <WarningLevel>TurnOffAllWarnings</WarningLevel>
-      <DebugInformationFormat>
-      </DebugInformationFormat>
+      @id_debug_information_format@
     </ClCompile>
     <Link>
       <GenerateDebugInformation>false</GenerateDebugInformation>

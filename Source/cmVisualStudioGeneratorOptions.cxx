@@ -116,6 +116,44 @@ void cmVisualStudioGeneratorOptions::FixExceptionHandlingDefault()
     }
 }
 
+void cmVisualStudioGeneratorOptions::FixClangOptions()
+{
+  if(this->Version == cmGlobalVisualStudioGenerator::VS14 &&
+     this->TargetGenerator->IsClang())
+    {
+    std::map<std::string, FlagValue>::iterator exceptionFlag =
+        this->FlagMap.find("ExceptionHandling");
+    if(exceptionFlag != this->FlagMap.end())
+      {
+      for(std::vector<std::string>::iterator i = exceptionFlag->second.begin();
+          i != exceptionFlag->second.end(); ++i)
+        {
+        if(stricmp(i->c_str(), "sync") == 0)
+          {
+          this->FlagMap["ExceptionHandling"] = "Enabled";
+          break;
+          }
+        }
+      }
+
+    std::map<std::string, FlagValue>::iterator debugFormat =
+        this->FlagMap.find("DebugInformationFormat");
+    if(debugFormat != this->FlagMap.end())
+      {
+      for(std::vector<std::string>::iterator i = debugFormat->second.begin();
+          i != debugFormat->second.end(); ++i)
+        {
+        if(stricmp(i->c_str(), "OldStyle") == 0 ||
+           stricmp(i->c_str(), "ProgramDatabase") == 0 ||
+           stricmp(i->c_str(), "EditAndContinue") == 0)
+          {
+          this->FlagMap["DebugInformationFormat"] = "FullDebug";
+          }
+        }
+      }
+    }
+}
+
 //----------------------------------------------------------------------------
 void cmVisualStudioGeneratorOptions::SetVerboseMakefile(bool verbose)
 {

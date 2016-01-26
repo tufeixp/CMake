@@ -52,6 +52,9 @@ public:
   // Fix the ExceptionHandling option to default to off.
   void FixExceptionHandlingDefault();
 
+  // Fix the Clang options that differ to CL
+  void FixClangOptions();
+
   // Store options for verbose builds.
   void SetVerboseMakefile(bool verbose);
 
