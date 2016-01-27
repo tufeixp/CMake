@@ -441,7 +441,11 @@ cmGlobalGenerator::EnableLanguage(std::vector<std::string>const& languages,
 
 #ifdef KWSYS_WINDOWS_DEPRECATED_GetVersionEx
 # pragma warning (push)
-# pragma warning (disable:4996)
+# if defined(__clang__)
+#  pragma clang diagnostic ignored "-Wdeprecated-declarations"
+# else // MSVC
+#  pragma warning (disable:4996)
+# endif
 #endif
     GetVersionExW((OSVERSIONINFOW*)&osviex);
 #ifdef KWSYS_WINDOWS_DEPRECATED_GetVersionEx

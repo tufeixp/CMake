@@ -1950,6 +1950,10 @@ bool cmVisualStudio10TargetGenerator::ComputeClOptions(
     {
     clOptions.AddFlag("CompileAs", "CompileAsCpp");
     }
+  if(IsClang())
+    {
+    clOptions.AddFlag("MSCompatibility", "true");
+    }
   this->LocalGenerator->AddCompileOptions(flags, this->Target,
                                           linkLanguage, configName.c_str());
 

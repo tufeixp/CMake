@@ -4894,7 +4894,9 @@ std::string SystemTools::GetOperatingSystemNameAndVersion()
 # pragma warning (push)
 # ifdef __INTEL_COMPILER
 #  pragma warning (disable:1478)
-# else
+# elif defined(__clang__)
+#  pragma clang diagnostic ignored "-Wdeprecated-declarations"
+# else // MSVC
 #  pragma warning (disable:4996)
 # endif
 #endif

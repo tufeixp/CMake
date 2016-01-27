@@ -365,7 +365,9 @@ kwsysProcess* kwsysProcess_New(void)
 # pragma warning (push)
 # ifdef __INTEL_COMPILER
 #  pragma warning (disable:1478)
-# else
+# elif defined(__clang__)
+#  pragma clang diagnostic ignored "-Wdeprecated-declarations"
+# else // MSVC
 #  pragma warning (disable:4996)
 # endif
 #endif
@@ -2897,8 +2899,8 @@ static int kwsysProcessesAdd(HANDLE hProcess, DWORD dwProcessid,
     newSize = kwsysProcesses.Size? kwsysProcesses.Size*2 : 4;
 
     /* Try allocating the new block of memory.  */
-    if(newArray = (kwsysProcessInstance*)malloc(
-       newSize*sizeof(kwsysProcessInstance)))
+    if((newArray = (kwsysProcessInstance*)malloc(
+       newSize*sizeof(kwsysProcessInstance))))
       {
       /* Copy the old process handles to the new memory.  */
       if(kwsysProcesses.Count > 0)
